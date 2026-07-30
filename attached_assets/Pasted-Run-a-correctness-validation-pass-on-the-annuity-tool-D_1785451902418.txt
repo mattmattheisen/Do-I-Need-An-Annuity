@@ -1,0 +1,62 @@
+Run a correctness validation pass on the annuity tool. Do not change any
+scoring logic unless you find an actual bug — report findings first.
+
+1. GOLDEN CASES
+Compute the expected suitability score by hand for each profile below from
+the scoring rules in the code, then run the profile through the app and
+compare. Report expected vs. actual for each, and the full component
+breakdown for any mismatch.
+
+  A. Age 62, expects to live to 82, $85,000 existing guaranteed income,
+     $75,000 spending goal, heirs important = yes, healthcare concern = yes,
+     market comfort = very comfortable.
+     Expect: very low score, recommendation at or near $0.
+
+  B. Age 72, expects to live to 96, $22,000 existing guaranteed income,
+     $80,000 spending goal, heirs important = no, healthcare concern = no,
+     market comfort = very uncomfortable, $900,000 investable.
+     Expect: high score.
+
+  C. Age 67, expects to live to 88, $40,000 existing income, $75,000
+     spending goal, heirs = no, healthcare = yes, market comfort = neutral,
+     $600,000 investable.
+     Expect: middle of the range.
+
+  D. Every input at its maximum-scoring extreme. Confirm the total is
+     exactly 100 and not higher.
+
+  E. Every input at its minimum-scoring extreme. Confirm the total is
+     exactly 0 and not negative.
+
+2. DIRECTIONAL SANITY
+Hold all inputs fixed and vary one at a time. Confirm each moves the score
+in the correct direction and report the actual deltas:
+  - Expected age up -> score up
+  - Existing guaranteed income up -> score down
+  - Heirs important toggled to yes -> score down by exactly 10
+  - Healthcare concern toggled to yes -> score down by exactly 10
+  - Market comfort moved toward "very comfortable" -> score DOWN
+The market comfort component is inverted relative to the others. Verify
+its direction explicitly — this is the most likely place for a sign error.
+
+3. BAND BOUNDARIES
+Find input combinations producing scores of exactly 25, 26, 50, 51, 75,
+and 76. Confirm each displays the correct interpretation band. Report the
+comparison operators used in the band logic.
+
+4. RECOMMENDATION CAP CHAIN
+The recommendation is score-scaled to a percentage, then capped so annuity
+income does not exceed the income gap.
+  - Construct a case where the income gap binds first. Verify.
+  - Construct a case where the 50% ceiling binds first. Verify.
+  - Confirm across a wide sweep of inputs that the recommendation is never
+    negative and never exceeds 50% of investable assets.
+
+5. PAYOUT RATE INTERPOLATION
+  - Age 65 should return exactly 6.4%
+  - Age 70 should return exactly 7.3%
+  - Age 67 should return a value strictly between them
+  - Age 58 and age 95 should clamp to the table endpoints, not extrapolate
+Report the actual returned values.
+
+6.

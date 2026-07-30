@@ -603,13 +603,22 @@ export default function AnnuityTool() {
         {/* Step 3: Results */}
         {step === 3 && results && (
           <div className="space-y-8">
-            <button
-              onClick={handleStartOver}
-              className="text-sm text-muted-foreground hover:text-foreground"
-              data-testid="button-start-over"
-            >
-              ← Start over
-            </button>
+            <div className="flex items-center justify-between">
+              <button
+                onClick={handleBack}
+                className="text-sm text-muted-foreground hover:text-foreground"
+                data-testid="button-back-step3"
+              >
+                ← Back
+              </button>
+              <button
+                onClick={handleStartOver}
+                className="text-sm text-muted-foreground hover:text-foreground"
+                data-testid="button-start-over"
+              >
+                Start over
+              </button>
+            </div>
 
             {/* Suitability Score */}
             <div className="text-center">

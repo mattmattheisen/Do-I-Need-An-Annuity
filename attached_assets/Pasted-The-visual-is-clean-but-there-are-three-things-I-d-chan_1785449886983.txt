@@ -1,0 +1,11 @@
+The visual is clean, but there are three things I'd change, in ascending order of importance.
+
+No end labels. Right now the only text is "Neutral" under the thumb. Nothing tells the client which direction is which — they have to drag it and infer from the word that appears. Anchor both ends: "Very uncomfortable" on the left, "Very comfortable" on the right, in muted gray. Same for the five positions if you want tick marks, though ends alone are usually enough.
+
+The green fill reads as a progress bar. Your accent color fills in as the client moves right, which visually says "more is better" — and here, more comfort with volatility isn't better, it's just different, and it actually lowers the annuity score. Make the track neutral gray throughout and put emerald only on the thumb. That removes the implied endorsement.
+
+The question itself is the real problem. "How comfortable are you with market ups and downs?" measures self-image, not behavior. Almost everyone rates themselves near the middle or slightly above, and the people most likely to panic-sell in a drawdown are frequently the ones who describe themselves as comfortable — right up until it happens. This input is worth a full quarter of the suitability score, so a soft question weakens the whole output.
+
+Ask about a specific event instead. Something like: "Your investments drop 25% in a single year. What would you most likely do?" with five options ranging from "Sell most of it — I couldn't sleep" through "Hold and rebalance" to "Buy more while prices are down." That's a concrete scenario with a concrete answer, it's much harder to answer aspirationally, and it maps cleanly onto the same 0–25 scale.
+
+It also argues for dropping the slider and using five stacked radio buttons or segmented options. Fidelity's own risk questionnaires are multiple choice for exactly this reason — a slider invites the client to split the difference and land in the middle, while discrete options with real descriptions force an actual choice. You lose nothing visually, and it fits the wizard's one-question-per-screen rhythm better than a slider does.

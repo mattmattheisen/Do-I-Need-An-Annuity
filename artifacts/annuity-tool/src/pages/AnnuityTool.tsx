@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Slider } from '@/components/ui/slider';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 interface FormData {
   currentAge: string;
@@ -16,12 +16,12 @@ interface FormData {
   marketComfort: number;
 }
 
-const MARKET_COMFORT_LABELS = [
-  'Very uncomfortable',
-  'Uncomfortable',
-  'Neutral',
-  'Comfortable',
-  'Very comfortable',
+const SCENARIO_OPTIONS = [
+  { value: 0, label: 'Sell most of it — I couldn\'t sleep' },
+  { value: 1, label: 'Sell some and move to cash' },
+  { value: 2, label: 'Hold what I have and wait it out' },
+  { value: 3, label: 'Hold and rebalance as planned' },
+  { value: 4, label: 'Buy more while prices are down' },
 ];
 
 export default function AnnuityTool() {
@@ -278,7 +278,7 @@ export default function AnnuityTool() {
       );
       y += 6;
       doc.text(
-        `Market comfort: ${MARKET_COMFORT_LABELS[formData.marketComfort]}`,
+        `Market scenario response: ${SCENARIO_OPTIONS[formData.marketComfort]?.label}`,
         leftMargin,
         y
       );
@@ -561,24 +561,30 @@ export default function AnnuityTool() {
               </div>
 
               <div className="pt-4">
-                <Label htmlFor="marketComfort" className="text-base font-medium">
-                  How comfortable are you with market ups and downs?
+                <Label className="text-base font-medium">
+                  Your investments drop 25% in a single year. What would you most likely do?
                 </Label>
-                <div className="mt-4">
-                  <Slider
-                    id="marketComfort"
-                    min={0}
-                    max={4}
-                    step={1}
-                    value={[formData.marketComfort]}
-                    onValueChange={(value) => updateField('marketComfort', value[0])}
-                    className="w-full"
-                    data-testid="slider-market-comfort"
-                  />
-                  <p className="mt-3 text-center text-sm font-medium text-foreground">
-                    {MARKET_COMFORT_LABELS[formData.marketComfort]}
-                  </p>
-                </div>
+                <RadioGroup
+                  value={String(formData.marketComfort)}
+                  onValueChange={(val) => updateField('marketComfort', Number(val))}
+                  className="mt-4 space-y-2"
+                  data-testid="radio-market-scenario"
+                >
+                  {SCENARIO_OPTIONS.map((opt) => (
+                    <label
+                      key={opt.value}
+                      className={`flex cursor-pointer items-center gap-3 rounded-md border px-4 py-3 text-sm transition-colors ${
+                        formData.marketComfort === opt.value
+                          ? 'border-primary bg-accent/40 text-foreground'
+                          : 'border-border bg-card text-foreground hover:bg-muted/50'
+                      }`}
+                      data-testid={`radio-scenario-${opt.value}`}
+                    >
+                      <RadioGroupItem value={String(opt.value)} id={`scenario-${opt.value}`} />
+                      {opt.label}
+                    </label>
+                  ))}
+                </RadioGroup>
               </div>
             </div>
 
@@ -681,12 +687,13 @@ export default function AnnuityTool() {
                     </span>
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    You selected {MARKET_COMFORT_LABELS[formData.marketComfort]} market comfort.{' '}
+                    You said: "{SCENARIO_OPTIONS[formData.marketComfort]?.label}."
+                    {' '}
                     {formData.marketComfort <= 1
-                      ? 'Less comfortable investors may prefer guaranteed income over market exposure.'
+                      ? 'Investors who would reduce exposure in a downturn often benefit from guaranteed income that removes the decision entirely.'
                       : formData.marketComfort >= 3
-                        ? 'More comfortable investors may prefer market exposure over guaranteed income.'
-                        : 'Moderate comfort suggests balanced consideration of both approaches.'}
+                        ? 'Investors comfortable staying invested or buying in a downturn typically have less need for guaranteed income to manage volatility.'
+                        : 'A hold-and-wait response suggests moderate tolerance — guaranteed income may reduce pressure to act during downturns.'}
                   </p>
                 </div>
               </div>

@@ -787,6 +787,182 @@ export default function AnnuityTool() {
               </div>
             </div>
 
+            {/* Considerations */}
+            <div className="space-y-8" data-testid="section-considerations">
+
+              {/* Subsection 1: What this means for you */}
+              <div>
+                <h2 className="mb-5 text-xl font-semibold text-foreground">What this means for you</h2>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+                  {/* Always shown: Permanent */}
+                  <div
+                    style={{
+                      backgroundColor: '#F7F8F7',
+                      borderLeft: '3px solid #059669',
+                      padding: '20px',
+                      fontSize: '15px',
+                      lineHeight: '1.7',
+                      color: '#1A1A1A',
+                    }}
+                    data-testid="consideration-permanent"
+                  >
+                    <span style={{ fontWeight: 700 }}>Permanent.</span>{' '}
+                    This purchase cannot be reversed, reallocated, or partially withdrawn once made.
+                  </div>
+
+                  {/* Always shown: Inflation */}
+                  {(() => {
+                    const years = Number(formData.expectedAge) - Number(formData.currentAge);
+                    const inflationAdjusted = years > 0
+                      ? results.estimatedIncome / Math.pow(1.03, years)
+                      : results.estimatedIncome;
+                    return (
+                      <div
+                        style={{
+                          backgroundColor: '#F7F8F7',
+                          borderLeft: '3px solid #059669',
+                          padding: '20px',
+                          fontSize: '15px',
+                          lineHeight: '1.7',
+                          color: '#1A1A1A',
+                        }}
+                        data-testid="consideration-inflation"
+                      >
+                        <span style={{ fontWeight: 700 }}>Inflation.</span>{' '}
+                        The {formatCurrency(results.estimatedIncome)} annual income shown here would buy
+                        roughly {formatCurrency(inflationAdjusted)} of today's goods by age {formData.expectedAge}.
+                      </div>
+                    );
+                  })()}
+
+                  {/* Conditional: Heirs */}
+                  {formData.heirsImportant && (
+                    <div
+                      style={{
+                        backgroundColor: '#F7F8F7',
+                        borderLeft: '3px solid #059669',
+                        padding: '20px',
+                        fontSize: '15px',
+                        lineHeight: '1.7',
+                        color: '#1A1A1A',
+                      }}
+                      data-testid="consideration-heirs"
+                    >
+                      <span style={{ fontWeight: 700 }}>Your heirs.</span>{' '}
+                      You told us leaving money to heirs is important. The {formatCurrency(results.recommendedAmount)} in
+                      this recommendation passes nothing to them unless you add a refund provision, and that
+                      provision typically reduces income by 15–25%.
+                    </div>
+                  )}
+
+                  {/* Conditional: Healthcare */}
+                  {formData.healthcareConcern && (
+                    <div
+                      style={{
+                        backgroundColor: '#F7F8F7',
+                        borderLeft: '3px solid #059669',
+                        padding: '20px',
+                        fontSize: '15px',
+                        lineHeight: '1.7',
+                        color: '#1A1A1A',
+                      }}
+                      data-testid="consideration-healthcare"
+                    >
+                      <span style={{ fontWeight: 700 }}>Long-term care.</span>{' '}
+                      You flagged healthcare costs as a concern. The {formatCurrency(results.recommendedAmount)} in
+                      this recommendation could not be accessed for those costs at any point after purchase.
+                    </div>
+                  )}
+
+                  {/* Conditional: Concentration > 35% */}
+                  {results.recommendedPct > 0.35 && (
+                    <div
+                      style={{
+                        backgroundColor: '#F7F8F7',
+                        borderLeft: '3px solid #059669',
+                        padding: '20px',
+                        fontSize: '15px',
+                        lineHeight: '1.7',
+                        color: '#1A1A1A',
+                      }}
+                      data-testid="consideration-concentration"
+                    >
+                      <span style={{ fontWeight: 700 }}>Concentration.</span>{' '}
+                      This recommendation commits more than a third of your investable assets to a single insurer.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Subsection 2: What this tool doesn't account for */}
+              <div>
+                <h2 className="mb-5 text-xl font-semibold text-foreground">What this tool doesn't account for</h2>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+                  <div
+                    style={{
+                      borderLeft: '3px solid #D4D4D4',
+                      padding: '20px',
+                      fontSize: '15px',
+                      lineHeight: '1.7',
+                      color: '#1A1A1A',
+                    }}
+                    data-testid="limitation-insurer"
+                  >
+                    <span style={{ fontWeight: 700 }}>The insurer.</span>{' '}
+                    Payments depend on a single company's ability to pay for decades.
+                  </div>
+
+                  <div
+                    style={{
+                      borderLeft: '3px solid #D4D4D4',
+                      padding: '20px',
+                      fontSize: '15px',
+                      lineHeight: '1.7',
+                      color: '#1A1A1A',
+                    }}
+                    data-testid="limitation-tax"
+                  >
+                    <span style={{ fontWeight: 700 }}>Tax treatment.</span>{' '}
+                    Annuity income is taxed as ordinary income. Depending on your bracket, net income after tax
+                    may be meaningfully lower than the figure shown here.
+                  </div>
+
+                  <div
+                    style={{
+                      borderLeft: '3px solid #D4D4D4',
+                      padding: '20px',
+                      fontSize: '15px',
+                      lineHeight: '1.7',
+                      color: '#1A1A1A',
+                    }}
+                    data-testid="limitation-payout-rates"
+                  >
+                    <span style={{ fontWeight: 700 }}>Actual payout rates.</span>{' '}
+                    The income estimates here use approximate market rates and will differ from any real quote.
+                    Rates vary by insurer, state, and the exact date of purchase.
+                  </div>
+
+                  <div
+                    style={{
+                      borderLeft: '3px solid #D4D4D4',
+                      padding: '20px',
+                      fontSize: '15px',
+                      lineHeight: '1.7',
+                      color: '#1A1A1A',
+                    }}
+                    data-testid="limitation-portfolio"
+                  >
+                    <span style={{ fontWeight: 700 }}>Your full picture.</span>{' '}
+                    This tool does not know your complete financial situation — other assets, liabilities,
+                    tax accounts, or existing annuities. A licensed advisor should review any decision before you act.
+                  </div>
+
+                </div>
+              </div>
+            </div>
+
             {/* Download Button */}
             <div className="flex justify-center pt-4">
               <Button onClick={downloadPDF} data-testid="button-download-pdf">

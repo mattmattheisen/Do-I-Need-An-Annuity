@@ -57,9 +57,9 @@ export default function AnnuityTool() {
     const currentAge = Number(formData.currentAge);
     const expectedAge = Number(formData.expectedAge);
 
-    // Require a positive integer age; reject empty, 0, negatives, and > 120
-    if (!formData.currentAge || isNaN(currentAge) || currentAge < 1 || currentAge > 120) {
-      newErrors.currentAge = 'Please enter a valid current age (1–120)';
+    // Require a realistic retirement-planning age; reject values below 50
+    if (!formData.currentAge || isNaN(currentAge) || currentAge < 50 || currentAge > 120) {
+      newErrors.currentAge = 'Please enter a valid current age (50–120)';
     }
     if (!formData.expectedAge || isNaN(expectedAge) || expectedAge < 1 || expectedAge > 120) {
       newErrors.expectedAge = 'Please enter a valid expected age (1–120)';
@@ -141,6 +141,7 @@ export default function AnnuityTool() {
     const longevityScore = Math.min(25, Math.max(0, ((expectedAge - 80) / 20) * 25));
 
     // Component 2: Income Gap (0-25)
+    // gap is reused throughout the cap chain below
     const gap = Math.max(0, spendingGoal - guaranteedIncome);
     const gapPct = spendingGoal > 0 ? gap / spendingGoal : 0;
     const incomeGapScore = Math.min(25, Math.max(0, (gapPct / 0.6) * 25));
@@ -148,25 +149,11 @@ export default function AnnuityTool() {
     // Component 4: Behavioral Fit (0-25)
     const behavioralFitScore = (4 - sliderValue) * (25 / 4);
 
-    // Component 3: Flexibility Need (0-25) - initially without the 35% check
-    let flexibilityNeed = 25;
-    if (heirsImportant) flexibilityNeed -= 10;
-    if (healthcareConcern) flexibilityNeed -= 10;
-
-    // Initial suitability score — clamped to [0, 100] so no edge case can
-    // produce a negative score or one above 100
-    const clampScore = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
-    let suitabilityScore = clampScore(longevityScore + incomeGapScore + flexibilityNeed + behavioralFitScore);
-
-    // Check if allocation exceeds 35%
-    let allocPct = (suitabilityScore / 100) * 0.5;
-    if (investableAssets > 0 && allocPct > 0.35) {
-      flexibilityNeed = Math.max(0, flexibilityNeed - 5);
-      suitabilityScore = clampScore(longevityScore + incomeGapScore + flexibilityNeed + behavioralFitScore);
-      allocPct = (suitabilityScore / 100) * 0.5;
-    }
-
-    // Payout rate calculation
+    // Payout rate — moved above the concentration check so the check can use it
+    // as part of an exogenous (score-independent) test.
+    // NOTE: getPayoutRate returns a full-precision interpolated value (e.g. 0.0676
+    // for age 67). The UI displays it rounded to one decimal (6.8%) for readability,
+    // but all income calculations use the unrounded value.
     const getPayoutRate = (age: number): number => {
       const breakpoints: [number, number][] = [
         [60, 0.058],
@@ -186,21 +173,59 @@ export default function AnnuityTool() {
       }
       return 0.064;
     };
-
     const payoutRate = getPayoutRate(currentAge);
-    let rawDollarAmount = allocPct * investableAssets;
+
+    // Component 3: Flexibility Need (0-25)
+    let flexibilityNeed = 25;
+    if (heirsImportant) flexibilityNeed -= 10;
+    if (healthcareConcern) flexibilityNeed -= 10;
+
+    // Exogenous concentration check: apply –5 only if fully closing the income
+    // gap (gap ÷ payoutRate gives the purchase amount needed) would place more
+    // than 35% of investable assets in an annuity.
+    //
+    // The previous test checked (score × 0.5 > 0.35), which is circular — the
+    // score depends on flexibility, flexibility depends on the penalty, and the
+    // penalty depends on the score. That made pre-penalty scores 71–75
+    // non-monotonic: score 70 → final 70, score 71 → final 66. The gap-closing
+    // amount is computed entirely from inputs, not from the score being derived.
+    const gapClosingAmount = gap > 0 && payoutRate > 0 ? gap / payoutRate : 0;
+    const concentrationPenaltyFired =
+      investableAssets > 0 && gapClosingAmount > 0.35 * investableAssets;
+    if (concentrationPenaltyFired) {
+      flexibilityNeed = Math.max(0, flexibilityNeed - 5);
+    }
+
+    // Suitability score — computed once, clamped to [0, 100]
+    const clampScore = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
+    const suitabilityScore = clampScore(
+      longevityScore + incomeGapScore + flexibilityNeed + behavioralFitScore
+    );
+    const allocPct = (suitabilityScore / 100) * 0.5;
+
+    const rawDollarAmount = allocPct * investableAssets;
     const rawAnnuityIncome = rawDollarAmount * payoutRate;
 
-    // Cap so annuity income doesn't exceed income gap.
+    // Cap so annuity income doesn't exceed the income gap.
     // If guaranteed income already covers spending entirely (gap = 0),
     // there is nothing for an annuity to fill — recommend $0.
-    const incomeGapDollars = Math.max(0, spendingGoal - guaranteedIncome);
     let finalDollarAmount = rawDollarAmount;
-    if (incomeGapDollars === 0) {
+    if (gap === 0) {
       finalDollarAmount = 0;
-    } else if (rawAnnuityIncome > incomeGapDollars) {
-      finalDollarAmount = incomeGapDollars / payoutRate;
+    } else if (rawAnnuityIncome > gap) {
+      finalDollarAmount = gap / payoutRate;
     }
+
+    // Minimum contract floor — most carriers will not write a contract below
+    // ~$25,000. If the computed amount falls below this, flag it and zero the
+    // recommendation so the UI can explain rather than name a meaningless figure.
+    const MIN_ANNUITY_PURCHASE = 25000;
+    const gapTooSmallForContract =
+      finalDollarAmount > 0 && finalDollarAmount < MIN_ANNUITY_PURCHASE;
+    if (gapTooSmallForContract) {
+      finalDollarAmount = 0;
+    }
+
     const finalAllocPct = investableAssets > 0 ? finalDollarAmount / investableAssets : 0;
     const estimatedAnnualIncome = finalDollarAmount * payoutRate;
 
@@ -213,6 +238,8 @@ export default function AnnuityTool() {
       incomeGapScore,
       flexibilityNeed,
       behavioralFitScore,
+      concentrationPenaltyFired,
+      gapTooSmallForContract,
       recommendedAmount: finalDollarAmount,
       recommendedPct: finalAllocPct,
       estimatedIncome: estimatedAnnualIncome,
@@ -431,7 +458,7 @@ export default function AnnuityTool() {
                 <Input
                   id="currentAge"
                   type="number"
-                  min="1"
+                  min="50"
                   max="120"
                   value={formData.currentAge}
                   onChange={(e) => updateField('currentAge', e.target.value)}
@@ -710,10 +737,11 @@ export default function AnnuityTool() {
                         ? '–10 for heirs priority'
                         : formData.healthcareConcern
                           ? '–10 for healthcare concern'
-                          : 'No flexibility deductions applied'}
-                    {results.flexibilityNeed < 15 &&
-                      (formData.heirsImportant || formData.healthcareConcern) &&
-                      ', –5 for allocation exceeding 35%'}
+                          : !results.concentrationPenaltyFired
+                            ? 'No flexibility deductions applied'
+                            : null}
+                    {results.concentrationPenaltyFired &&
+                      `${formData.heirsImportant || formData.healthcareConcern ? ', ' : ''}–5 for concentration risk (closing this gap would exceed 35% of assets)`}
                   </p>
                 </div>
 
@@ -764,9 +792,25 @@ export default function AnnuityTool() {
                   </div>
                 </div>
                 <p className="mt-4 text-sm text-muted-foreground">
-                  This estimate uses an annuity payout rate of {(results.payoutRate * 100).toFixed(1)}%
-                  for someone purchasing at age {formData.currentAge}.
+                  This estimate uses an annuity payout rate of{' '}
+                  {(results.payoutRate * 100).toFixed(1)}% for someone purchasing at age{' '}
+                  {formData.currentAge}. Income calculations use the full-precision interpolated
+                  rate; the percentage shown above is rounded for display only.
                 </p>
+                {results.gap === 0 && (
+                  <p className="mt-3 rounded-md border border-border bg-muted/50 p-3 text-sm text-foreground">
+                    Your guaranteed income already covers your full spending goal — there is no
+                    income gap for an annuity to fill.
+                  </p>
+                )}
+                {results.gapTooSmallForContract && (
+                  <p className="mt-3 rounded-md border border-border bg-muted/50 p-3 text-sm text-foreground">
+                    Your income gap would be fully covered by an annuity smaller than the typical
+                    minimum contract size (~$25,000). Most carriers will not write a contract below
+                    this threshold. A standard annuity is not cost-effective for a gap this size —
+                    consider other income strategies.
+                  </p>
+                )}
               </div>
 
               <div className="mt-4 rounded-lg border border-border bg-card p-4">

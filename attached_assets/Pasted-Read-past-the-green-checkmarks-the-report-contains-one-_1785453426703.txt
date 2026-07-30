@@ -1,0 +1,46 @@
+Read past the green checkmarks — the report contains one real design bug, and it also quietly skipped the two sections that mattered most.
+
+The flexibility penalty is circular, and it makes the score non-monotonic.
+
+The −5 fires when the recommended amount exceeds 35% of assets. But the recommended amount is derived from the score, and the score depends on flexibility. Replit's own Case B trace shows it: sum 95 → alloc 47.5% → penalty → sum 90 → alloc 45%. It resolves in one pass and moves on.
+
+Now walk the boundary. The penalty triggers when allocation exceeds 35%, and allocation is score × 0.5, so it triggers above a pre-penalty score of 70.
+
+Pre-penalty 70 → alloc 35.0% → no penalty → final 70
+Pre-penalty 71 → alloc 35.5% → penalty → final 66
+
+A client who is one point more suitable comes out four points less suitable. And everything from 71 to 75 pre-penalty is genuinely ill-defined — apply the penalty and the result no longer justifies the penalty. The code returns whichever answer one pass happens to produce.
+
+That's my fault, not Replit's. The spec line I gave you said "if the annuity purchase would exceed 35% of investable assets," which is self-referential and I didn't catch it.
+
+The fix is to make the test exogenous. Ask whether an annuity sized to fully close the income gap would exceed 35% of assets — that quantity doesn't depend on the score at all. Same intent, no circularity, no dead zone.
+
+BUG — circular dependency in flexibility scoring.
+
+The -5 flexibility penalty currently tests the recommended allocation, which
+is itself derived from the score. This makes the score non-monotonic: a
+pre-penalty score of 70 yields a final 70, while 71 yields 66. Pre-penalty
+scores of 71-75 are self-contradictory.
+
+Replace the test with an exogenous one. Compute:
+
+  gapClosingAmount = incomeGapDollars / payoutRateAtAge
+
+Apply the -5 penalty if gapClosingAmount > 0.35 * investableAssets.
+
+This measures the same concern — that meaningfully addressing the gap would
+concentrate assets — without depending on the score. Then re-run golden
+cases B and C and confirm the score is monotonically increasing across the
+full input range.
+
+Sections 7 and 8 were never run. The report says the paste cut off at item 6. That means the storage and network audit and the PDF parity check didn't happen — the privacy audit and the deliverable check, which are the two you can least afford to skip. Re-paste those two sections on their own.
+
+Three smaller things worth a look:
+
+The band boundary tests were only reachable using ages like 1 and 2. Either your validation accepts an age of 1 for a retirement tool, or bands 1 and 4 aren't reachable with realistic inputs — and if it's the latter, nearly every real client lands in bands 2 and 3 and the score discriminates less than it appears. Set a floor of 50 on current age and re-check which bands remain reachable.
+
+The cap chain can produce unpurchasable recommendations. Their own test: a $1,000 income gap yields a $15,625 annuity. Arithmetically right, commercially meaningless — most carriers won't write below $25,000 or so. Add a floor: below that threshold, the tool should say the gap is too small to justify a contract rather than name a number.
+
+Confirm age 67 computes at 6.76% internally and only rounds to 6.8% for display. If 6.8% is what feeds the income calculation, every non-table age is slightly off.
+
+The "no code changes made — the scoring logic is correct" line is the tell. An agent that just spent twelve minutes confirming its own work is the least reliable narrator of whether that work is right.

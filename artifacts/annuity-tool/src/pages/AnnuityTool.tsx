@@ -57,17 +57,23 @@ export default function AnnuityTool() {
     const currentAge = Number(formData.currentAge);
     const expectedAge = Number(formData.expectedAge);
 
-    if (!formData.currentAge || isNaN(currentAge) || currentAge < 0 || currentAge > 120) {
-      newErrors.currentAge = 'Please enter a valid current age';
+    // Require a positive integer age; reject empty, 0, negatives, and > 120
+    if (!formData.currentAge || isNaN(currentAge) || currentAge < 1 || currentAge > 120) {
+      newErrors.currentAge = 'Please enter a valid current age (1–120)';
     }
-    if (!formData.expectedAge || isNaN(expectedAge) || expectedAge < 0 || expectedAge > 120) {
-      newErrors.expectedAge = 'Please enter a valid expected age';
+    if (!formData.expectedAge || isNaN(expectedAge) || expectedAge < 1 || expectedAge > 120) {
+      newErrors.expectedAge = 'Please enter a valid expected age (1–120)';
     }
-    if (currentAge && expectedAge && expectedAge <= currentAge) {
+    // Check ordering only after both fields pass their own validation to avoid
+    // misleading messages (and avoid short-circuiting on age === 0)
+    if (!newErrors.currentAge && !newErrors.expectedAge && expectedAge <= currentAge) {
       newErrors.expectedAge = 'Expected age must be greater than current age';
     }
-    if (!formData.guaranteedIncome) {
-      newErrors.guaranteedIncome = 'Please enter your guaranteed annual income';
+    // Guaranteed income: required field; 0 is a legitimate value
+    if (formData.guaranteedIncome === '') {
+      newErrors.guaranteedIncome = 'Please enter your guaranteed annual income (enter 0 if none)';
+    } else if (isNaN(Number(formData.guaranteedIncome)) || Number(formData.guaranteedIncome) < 0) {
+      newErrors.guaranteedIncome = 'Please enter a valid amount (0 or greater)';
     }
 
     setErrors(newErrors);
@@ -77,11 +83,15 @@ export default function AnnuityTool() {
   const validateStep2 = (): boolean => {
     const newErrors: Partial<Record<keyof FormData, string>> = {};
 
-    if (!formData.investableAssets) {
+    if (formData.investableAssets === '' || isNaN(Number(formData.investableAssets))) {
       newErrors.investableAssets = 'Please enter your total investable assets';
+    } else if (Number(formData.investableAssets) < 0) {
+      newErrors.investableAssets = 'Investable assets cannot be negative';
     }
-    if (!formData.spendingGoal) {
+    if (formData.spendingGoal === '' || isNaN(Number(formData.spendingGoal))) {
       newErrors.spendingGoal = 'Please enter your annual spending goal';
+    } else if (Number(formData.spendingGoal) <= 0) {
+      newErrors.spendingGoal = 'Spending goal must be greater than zero';
     }
 
     setErrors(newErrors);
@@ -116,11 +126,13 @@ export default function AnnuityTool() {
   };
 
   const calculateResults = () => {
-    const currentAge = Number(formData.currentAge);
-    const expectedAge = Number(formData.expectedAge);
-    const guaranteedIncome = Number(formData.guaranteedIncome);
-    const investableAssets = Number(formData.investableAssets);
-    const spendingGoal = Number(formData.spendingGoal);
+    // Fallback to 0 for any field that somehow arrives as NaN (e.g. empty string
+    // after a rapid Back → forward navigation before validation fires)
+    const currentAge   = Number(formData.currentAge)    || 0;
+    const expectedAge  = Number(formData.expectedAge)   || 0;
+    const guaranteedIncome = Number(formData.guaranteedIncome) || 0;
+    const investableAssets = Number(formData.investableAssets) || 0;
+    const spendingGoal = Number(formData.spendingGoal)  || 0;
     const sliderValue = formData.marketComfort;
     const heirsImportant = formData.heirsImportant;
     const healthcareConcern = formData.healthcareConcern;
@@ -141,14 +153,16 @@ export default function AnnuityTool() {
     if (heirsImportant) flexibilityNeed -= 10;
     if (healthcareConcern) flexibilityNeed -= 10;
 
-    // Initial suitability score
-    let suitabilityScore = Math.round(longevityScore + incomeGapScore + flexibilityNeed + behavioralFitScore);
+    // Initial suitability score — clamped to [0, 100] so no edge case can
+    // produce a negative score or one above 100
+    const clampScore = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
+    let suitabilityScore = clampScore(longevityScore + incomeGapScore + flexibilityNeed + behavioralFitScore);
 
     // Check if allocation exceeds 35%
     let allocPct = (suitabilityScore / 100) * 0.5;
     if (investableAssets > 0 && allocPct > 0.35) {
       flexibilityNeed = Math.max(0, flexibilityNeed - 5);
-      suitabilityScore = Math.round(longevityScore + incomeGapScore + flexibilityNeed + behavioralFitScore);
+      suitabilityScore = clampScore(longevityScore + incomeGapScore + flexibilityNeed + behavioralFitScore);
       allocPct = (suitabilityScore / 100) * 0.5;
     }
 
@@ -282,9 +296,10 @@ export default function AnnuityTool() {
       );
       y += 6;
       doc.text(
-        `Market scenario response: ${SCENARIO_OPTIONS[formData.marketComfort]?.label}`,
+        `Market scenario response: ${SCENARIO_OPTIONS[formData.marketComfort]?.label ?? ''}`,
         leftMargin,
-        y
+        y,
+        { maxWidth: 170 }
       );
       y += 12;
 
@@ -416,6 +431,8 @@ export default function AnnuityTool() {
                 <Input
                   id="currentAge"
                   type="number"
+                  min="1"
+                  max="120"
                   value={formData.currentAge}
                   onChange={(e) => updateField('currentAge', e.target.value)}
                   className="mt-2"
@@ -433,6 +450,8 @@ export default function AnnuityTool() {
                 <Input
                   id="expectedAge"
                   type="number"
+                  min="1"
+                  max="120"
                   value={formData.expectedAge}
                   onChange={(e) => updateField('expectedAge', e.target.value)}
                   className="mt-2"
@@ -458,6 +477,8 @@ export default function AnnuityTool() {
                   <Input
                     id="guaranteedIncome"
                     type="number"
+                    min="0"
+                    inputMode="decimal"
                     value={formData.guaranteedIncome}
                     onChange={(e) => updateField('guaranteedIncome', e.target.value)}
                     className="pl-7"
@@ -531,6 +552,8 @@ export default function AnnuityTool() {
                   <Input
                     id="investableAssets"
                     type="number"
+                    min="0"
+                    inputMode="decimal"
                     value={formData.investableAssets}
                     onChange={(e) => updateField('investableAssets', e.target.value)}
                     className="pl-7"
@@ -553,6 +576,8 @@ export default function AnnuityTool() {
                   <Input
                     id="spendingGoal"
                     type="number"
+                    min="1"
+                    inputMode="decimal"
                     value={formData.spendingGoal}
                     onChange={(e) => updateField('spendingGoal', e.target.value)}
                     className="pl-7"

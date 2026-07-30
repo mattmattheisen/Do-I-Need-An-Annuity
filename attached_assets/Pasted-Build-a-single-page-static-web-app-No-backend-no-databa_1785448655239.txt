@@ -1,0 +1,119 @@
+Build a single-page static web app. No backend, no database, no user accounts,
+no analytics. Everything runs client-side in the browser. Output should be
+deployable to Render as a static site.
+
+PURPOSE
+A retirement income decision tool for clients of Gambit Capital Management, LLC.
+It helps someone decide whether an immediate income annuity fits their situation,
+and if so, how much of their net worth should reasonably go into one.
+
+DESIGN
+- Aesthetic: clean institutional financial application (think Fidelity or Vanguard).
+- Single accent color: emerald green. Backgrounds white and light gray only.
+  No secondary accent colors.
+- No emojis. No decorative icons. Text and clean rules only.
+- Generous whitespace, clearly labeled fields, large readable type.
+- Logo (I'll upload the image) in the top-left header.
+- Mobile responsive.
+
+FLOW
+A step-by-step wizard. One screen at a time, a single "Next" button per screen,
+a "Back" link. Progress indicator showing step X of 3. No screen should ask for
+more than 4 inputs. The user should never have to do math.
+
+Screen 1 — "Your situation"
+- Current age (number)
+- Age you expect to live to (number, default 90, with helper text: "Most people
+  underestimate this. Average 65-year-old lives to about 85; half live longer.")
+- Guaranteed annual income you already have from Social Security and any pension
+  (dollar input)
+- Two yes/no toggles:
+  - "Is leaving money to heirs important to you?"
+  - "Are you concerned about future healthcare or long-term care costs?"
+
+Screen 2 — "Your finances"
+- Total investable assets (dollar input)
+- Annual spending you want to support in retirement (dollar input)
+- One slider: "How comfortable are you with market ups and downs?"
+  (5 positions, labeled Very uncomfortable → Very comfortable)
+
+Screen 3 — "Your results"
+See RESULTS below.
+
+SUITABILITY SCORE
+Compute a 0–100 score from four equally weighted 0–25 components. Show the total
+prominently, then a short breakdown of each component with a one-line plain-English
+explanation of why it scored the way it did.
+
+1. Longevity (0-25): longer expected lifespan = higher score.
+   Scale from expected-age 80 (0 pts) to 100 (25 pts), linear.
+
+2. Income gap (0-25): compute gap = spending goal − existing guaranteed income.
+   Express as a percentage of the spending goal. 0% gap = 0 pts. 60%+ gap = 25 pts,
+   linear in between.
+
+3. Flexibility need (0-25): start at 25 and subtract.
+   −10 if leaving money to heirs is important.
+   −10 if concerned about healthcare/long-term care costs.
+   −5 if the annuity purchase would exceed 35% of investable assets.
+
+4. Behavioral fit (0-25): from the market-comfort slider, inverted —
+   "very uncomfortable" = 25 pts, "very comfortable" = 0 pts.
+
+Interpretation bands, displayed with the score:
+0–25   "An annuity is unlikely to be the right tool for your situation."
+26–50  "An annuity may make sense for a small portion of your assets."
+51–75  "An annuity is worth serious consideration as part of your income plan."
+76–100 "An annuity aligns well with your priorities and goals."
+
+RIGHT-SIZED RECOMMENDATION
+Advisors are generally limited to recommending no more than 50% of a client's
+investable assets into an annuity. Many push clients toward that ceiling. This
+tool recommends what actually fits.
+
+Recommended allocation percentage = (suitability score / 100) × 50%, then
+capped so the resulting annuity income does not exceed the income gap.
+Display:
+- Recommended dollar amount into an annuity
+- That amount as a percentage of investable assets
+- Estimated annual income it would produce (use these approximate immediate
+  annuity payout rates by purchase age, single life: 60→5.8%, 65→6.4%,
+  70→7.3%, 75→8.5%, 80→10.2%; interpolate between)
+- The 50% industry ceiling shown alongside, with a plain-English line noting
+  that the ceiling is a regulatory maximum, not a target.
+
+Also show, in a simple two-column comparison:
+- What the recommended annuity gives up: liquidity, market participation on that
+  portion, and anything left to heirs on that portion.
+- What stays flexible: the remaining assets, still invested and accessible.
+
+PDF DOWNLOAD
+A "Download summary" button on the results screen. Use jsPDF loaded from a CDN.
+Generate the PDF entirely client-side. One page, matching the app's clean look:
+- Gambit logo top-right, date top-left
+- All of the user's inputs, listed plainly
+- The suitability score and its interpretation band
+- The four score components
+- The recommended annuity amount, percentage, and estimated annual income
+- Footer: "Prepared using the Gambit Capital Management retirement income
+  framework. This is an educational tool, not a recommendation or investment
+  advice. This report was generated on your own device."
+- Leave a clearly marked placeholder line in the footer for advisor name and
+  contact information so it's easy for me to edit later.
+
+PRIVACY
+This must be visible, not buried. A short statement in a bordered panel at the
+top of the first screen and repeated in the page footer:
+"Everything you enter stays on your device. Nothing is sent to us, saved, or
+tracked. Close this page and it's gone."
+No cookies, no localStorage, no third-party scripts other than the jsPDF CDN.
+
+DISCLAIMER
+Persistent small-print line at the bottom of every screen: educational tool only,
+not investment advice, individual circumstances vary, consult a licensed
+professional.
+
+CODE
+Keep it in as few files as possible — ideally one index.html with inline CSS and
+JS, so it's easy for me to edit and redeploy. Comment the scoring logic clearly
+so I can adjust the weights myself.

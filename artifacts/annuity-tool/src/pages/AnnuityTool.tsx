@@ -177,10 +177,14 @@ export default function AnnuityTool() {
     let rawDollarAmount = allocPct * investableAssets;
     const rawAnnuityIncome = rawDollarAmount * payoutRate;
 
-    // Cap so annuity income doesn't exceed income gap
+    // Cap so annuity income doesn't exceed income gap.
+    // If guaranteed income already covers spending entirely (gap = 0),
+    // there is nothing for an annuity to fill — recommend $0.
     const incomeGapDollars = Math.max(0, spendingGoal - guaranteedIncome);
     let finalDollarAmount = rawDollarAmount;
-    if (incomeGapDollars > 0 && rawAnnuityIncome > incomeGapDollars) {
+    if (incomeGapDollars === 0) {
+      finalDollarAmount = 0;
+    } else if (rawAnnuityIncome > incomeGapDollars) {
       finalDollarAmount = incomeGapDollars / payoutRate;
     }
     const finalAllocPct = investableAssets > 0 ? finalDollarAmount / investableAssets : 0;

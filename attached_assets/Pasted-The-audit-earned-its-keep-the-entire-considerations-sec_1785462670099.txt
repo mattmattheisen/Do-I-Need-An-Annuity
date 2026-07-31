@@ -1,0 +1,16 @@
+The audit earned its keep — the entire considerations section was missing from the PDF, which is the part of the tool you most wanted clients to leave with. Three notes.
+
+Google Fonts contradicts the claim as written. Your page says "nothing is sent to us, saved, or tracked." A Google Fonts request sends the client's IP to Google on every page load, before they type anything. No financial data goes with it, and Replit's characterization is fair on substance — but the statement on the page is absolute, and this is a firm making a privacy assertion to clients. Self-host the fonts. It's a small change and it makes the sentence literally true rather than nearly true:
+
+Remove the Google Fonts <link> from index.html. Download the font files,
+place them in the project, and load them with a local @font-face
+declaration. After the change, the only external request in the entire app
+should be the jsPDF CDN load on PDF download.
+
+Delete components/ui/sidebar.tsx while you're in there. It's dead scaffolding, but it's the one file in your codebase containing document.cookie, and anyone who greps this project later — including you in six months — will stop on it.
+
+The PDF miss is the more interesting finding. Every prior pass reported the tool as correct, and the considerations section wasn't in the PDF at all. Nothing caught it until something generated the actual file and read it. That's worth carrying forward as a rule: for anything client-facing, inspect the artifact, not the code that produces it.
+
+Which is why the last verification step is still yours. Open a PDF — a real one, from the deployed URL, for a client with both toggles set to yes so all the conditional blocks fire. Confirm the logo renders rather than sitting as a blank rectangle, the considerations read cleanly with real dollar figures interpolated, and nothing runs off the page. The page-break logic being "in place" and the page-break logic working are different claims, and only one of them can be checked by looking.
+
+Then swap the placeholder payout rates for current quotes from whoever you'd actually place business with, and it's ready to go out.

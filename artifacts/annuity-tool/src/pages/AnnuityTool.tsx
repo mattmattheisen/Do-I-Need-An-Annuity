@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import jsPDF from 'jspdf';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -252,11 +253,6 @@ export default function AnnuityTool() {
   };
 
   const downloadPDF = () => {
-    const script = document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-    script.onload = () => {
-      // @ts-expect-error - jsPDF loaded from CDN
-      const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
 
       const results = calculateResults();
@@ -491,8 +487,6 @@ export default function AnnuityTool() {
       );
 
       doc.save('annuity-assessment.pdf');
-    };
-    document.head.appendChild(script);
   };
 
   const results = step === 3 ? calculateResults() : null;

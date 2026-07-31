@@ -1,0 +1,15 @@
+Good fixes. Four things before you call this done.
+
+The new penalty may now fire for nearly everyone. Run the threshold backward: the test is gap ÷ payoutRate > 0.35 × assets. At a ~6.5% payout that reduces to gap > 0.023 × assets. For a client with $600k, any income gap above roughly $14,000 trips it. Almost every client who has a gap worth analyzing will have one larger than that — which means flexibility effectively tops out at 20 instead of 25, and the component stops discriminating between clients. Case C dropping to 52 is the first sighting of this.
+
+That's the tradeoff for removing the circularity: the old test was ill-defined, the new one is well-defined but close to constant. Two ways out. Raise the threshold so it identifies genuine concentration rather than ordinary gaps — testing against 60% of assets would mean it fires only when closing the gap would consume most of the portfolio, which is the situation you actually meant to flag. Or take concentration out of the score entirely and handle it where it belongs: the recommendation is already capped at 50%, and you already have a consideration block that warns on concentration. Scoring it a third time is redundant. I'd lean toward the second, but the first is a one-line change.
+
+Either way, sample it before deciding — run twenty plausible client profiles and count how often the penalty fires. If it's eighteen, it isn't measuring anything.
+
+Re-run the full golden set. Scoring changed, so A, B, D, and E are now unverified against hand calculations. Only C was recomputed.
+
+Sections 7 and 8 still haven't run. The storage and network audit and the PDF parity check were cut off in the original paste and haven't been mentioned since. Those are the privacy claim and the client deliverable — the two things you can least afford to take on faith. Paste them again on their own.
+
+Check what a $0 recommendation does to the consideration blocks. The personalized blocks interpolate the recommended dollar figure — "the $X in this recommendation passes nothing to your heirs." With the new $25,000 floor, X is now $0 for some clients, and those blocks will read as nonsense in both the app and the PDF. They should suppress when the recommendation is zero.
+
+Item 4 in their list is worth a second look too, incidentally. The display was using a proxy condition instead of the actual penalty flag, which means the breakdown shown during your earlier validation runs may not have matched what the engine was doing. Nothing wrong now, but it's a reminder that the screen and the engine can disagree — which is exactly what section 8 exists to catch.

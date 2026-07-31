@@ -180,21 +180,15 @@ export default function AnnuityTool() {
     if (heirsImportant) flexibilityNeed -= 10;
     if (healthcareConcern) flexibilityNeed -= 10;
 
-    // Exogenous concentration check: apply –5 only if fully closing the income
-    // gap (gap ÷ payoutRate gives the purchase amount needed) would place more
-    // than 35% of investable assets in an annuity.
-    //
-    // The previous test checked (score × 0.5 > 0.35), which is circular — the
-    // score depends on flexibility, flexibility depends on the penalty, and the
-    // penalty depends on the score. That made pre-penalty scores 71–75
-    // non-monotonic: score 70 → final 70, score 71 → final 66. The gap-closing
-    // amount is computed entirely from inputs, not from the score being derived.
-    const gapClosingAmount = gap > 0 && payoutRate > 0 ? gap / payoutRate : 0;
-    const concentrationPenaltyFired =
-      investableAssets > 0 && gapClosingAmount > 0.35 * investableAssets;
-    if (concentrationPenaltyFired) {
-      flexibilityNeed = Math.max(0, flexibilityNeed - 5);
-    }
+    // Concentration was previously applied as a –5 to flexibility, first as a
+    // circular score-derived check, then as an exogenous gap/payoutRate check.
+    // Both approaches penalised the majority of clients with any meaningful gap
+    // (20-profile sample: 55% at 35% threshold, 40% at 60%), making the
+    // component nearly constant rather than discriminating. Concentration is
+    // already addressed at the recommendation layer (50% cap) and in the
+    // consideration block below — penalising it a third time inside the score
+    // was redundant. Flexibility now reflects only illiquidity preference
+    // (heirs and healthcare) as originally intended.
 
     // Suitability score — computed once, clamped to [0, 100]
     const clampScore = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
@@ -238,7 +232,6 @@ export default function AnnuityTool() {
       incomeGapScore,
       flexibilityNeed,
       behavioralFitScore,
-      concentrationPenaltyFired,
       gapTooSmallForContract,
       recommendedAmount: finalDollarAmount,
       recommendedPct: finalAllocPct,
@@ -740,8 +733,6 @@ export default function AnnuityTool() {
                           : !results.concentrationPenaltyFired
                             ? 'No flexibility deductions applied'
                             : null}
-                    {results.concentrationPenaltyFired &&
-                      `${formData.heirsImportant || formData.healthcareConcern ? ', ' : ''}–5 for concentration risk (closing this gap would exceed 35% of assets)`}
                   </p>
                 </div>
 
@@ -877,24 +868,27 @@ export default function AnnuityTool() {
                 <h2 className="mb-5 text-xl font-semibold text-foreground">What this means for you</h2>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-                  {/* Always shown: Permanent */}
-                  <div
-                    style={{
-                      backgroundColor: '#F7F8F7',
-                      borderLeft: '3px solid #059669',
-                      padding: '20px',
-                      fontSize: '15px',
-                      lineHeight: '1.7',
-                      color: '#1A1A1A',
-                    }}
-                    data-testid="consideration-permanent"
-                  >
-                    <span style={{ fontWeight: 700 }}>Permanent.</span>{' '}
-                    This purchase cannot be reversed, reallocated, or partially withdrawn once made.
-                  </div>
+                  {/* Permanent, Inflation, Heirs, Healthcare: suppressed when
+                      recommendation is $0 — blocks referencing a dollar amount
+                      read as nonsense when there is no purchase to make */}
+                  {results.recommendedAmount > 0 && (
+                    <div
+                      style={{
+                        backgroundColor: '#F7F8F7',
+                        borderLeft: '3px solid #059669',
+                        padding: '20px',
+                        fontSize: '15px',
+                        lineHeight: '1.7',
+                        color: '#1A1A1A',
+                      }}
+                      data-testid="consideration-permanent"
+                    >
+                      <span style={{ fontWeight: 700 }}>Permanent.</span>{' '}
+                      This purchase cannot be reversed, reallocated, or partially withdrawn once made.
+                    </div>
+                  )}
 
-                  {/* Always shown: Inflation */}
-                  {(() => {
+                  {results.recommendedAmount > 0 && (() => {
                     const years = Number(formData.expectedAge) - Number(formData.currentAge);
                     const inflationAdjusted = years > 0
                       ? results.estimatedIncome / Math.pow(1.03, years)
@@ -919,7 +913,7 @@ export default function AnnuityTool() {
                   })()}
 
                   {/* Conditional: Heirs */}
-                  {formData.heirsImportant && (
+                  {formData.heirsImportant && results.recommendedAmount > 0 && (
                     <div
                       style={{
                         backgroundColor: '#F7F8F7',
@@ -939,7 +933,7 @@ export default function AnnuityTool() {
                   )}
 
                   {/* Conditional: Healthcare */}
-                  {formData.healthcareConcern && (
+                  {formData.healthcareConcern && results.recommendedAmount > 0 && (
                     <div
                       style={{
                         backgroundColor: '#F7F8F7',

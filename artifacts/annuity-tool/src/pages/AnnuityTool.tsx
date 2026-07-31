@@ -380,9 +380,95 @@ export default function AnnuityTool() {
         leftMargin,
         y
       );
-      y += 12;
+      y += 6;
 
-      // Footer
+      // Zero-gap / gap-too-small notes inline with recommendation
+      if (results.gap === 0) {
+        doc.setFont('helvetica', 'italic');
+        const noteLines = doc.splitTextToSize(
+          'Note: Guaranteed income already covers the full spending goal \u2014 there is no income gap for an annuity to fill.',
+          170
+        );
+        doc.text(noteLines, leftMargin, y);
+        y += noteLines.length * 5 + 6;
+        doc.setFont('helvetica', 'normal');
+      } else if (results.gapTooSmallForContract) {
+        doc.setFont('helvetica', 'italic');
+        const noteLines = doc.splitTextToSize(
+          'Note: The income gap would be fully covered by an annuity smaller than the typical minimum contract size (~$25,000). A standard annuity is not cost-effective for a gap this size.',
+          170
+        );
+        doc.text(noteLines, leftMargin, y);
+        y += noteLines.length * 5 + 6;
+        doc.setFont('helvetica', 'normal');
+      } else {
+        y += 6;
+      }
+
+      // Considerations — mirror the UI blocks, same conditional logic,
+      // suppressed when recommendation = $0
+      if (results.recommendedAmount > 0) {
+        const considerations: string[] = [];
+
+        if (results.recommendedPct > 0.35) {
+          considerations.push(
+            `Concentration: This recommendation places ${(results.recommendedPct * 100).toFixed(1)}% of investable assets into a single annuity contract. Most practitioners consider positions above 35% a concentration risk. Consider whether this is appropriate given the client\u2019s overall portfolio.`
+          );
+        }
+
+        considerations.push(
+          'Permanent: This purchase cannot be reversed, reallocated, or partially withdrawn once made.'
+        );
+
+        const years = Number(formData.expectedAge) - Number(formData.currentAge);
+        const inflationAdjusted =
+          years > 0 ? results.estimatedIncome / Math.pow(1.03, years) : results.estimatedIncome;
+        considerations.push(
+          `Inflation: The ${formatCurrency(results.estimatedIncome)} annual income shown here would buy roughly ${formatCurrency(inflationAdjusted)} of today\u2019s goods by age ${formData.expectedAge}.`
+        );
+
+        if (formData.heirsImportant) {
+          considerations.push(
+            `Your heirs: Leaving money to heirs is important to this client. The ${formatCurrency(results.recommendedAmount)} in this recommendation passes nothing to them unless a refund provision is added, which typically reduces income by 15\u201325%.`
+          );
+        }
+
+        if (formData.healthcareConcern) {
+          considerations.push(
+            `Long-term care: Healthcare costs were flagged as a concern. The ${formatCurrency(results.recommendedAmount)} in this recommendation could not be accessed for those costs at any point after purchase.`
+          );
+        }
+
+        // Page break before considerations if needed
+        if (y > 220) {
+          doc.addPage();
+          y = 20;
+        }
+
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Considerations', leftMargin, y);
+        y += 8;
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+
+        for (const text of considerations) {
+          if (y > 255) {
+            doc.addPage();
+            y = 20;
+          }
+          const lines = doc.splitTextToSize(text, 170);
+          doc.text(lines, leftMargin, y);
+          y += lines.length * 5 + 5;
+        }
+        y += 4;
+      }
+
+      // Footer — add new page if too close to the bottom
+      if (y > 260) {
+        doc.addPage();
+        y = 20;
+      }
       doc.setFontSize(9);
       doc.text(
         'Prepared using the Gambit Capital Management retirement income framework.',

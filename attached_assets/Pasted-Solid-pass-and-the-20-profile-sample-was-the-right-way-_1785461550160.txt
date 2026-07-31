@@ -1,0 +1,30 @@
+Solid pass, and the 20-profile sample was the right way to settle it — 55% and 40% firing rates are exactly the evidence that says "this isn't measuring anything." Removing it was the correct call.
+
+Three things it left loose, then the one that matters.
+
+Your band boundary tests are now stale. They were verified using current ages of 1 and 2, and validation now rejects anything under 50. The scoring also changed underneath them. Re-derive the six boundary cases (25, 26, 50, 51, 75, 76) using ages of 50 or above and confirm each still lands in the right band. The golden cases do prove all four bands are reachable — A at 8 and D at 100 bracket the whole range — so this is verification, not a suspected bug.
+
+Flexibility is now a three-value component. It returns 25, 15, or 5, driven entirely by two yes/no toggles, and it never reaches 0. That's not wrong, but be aware of what it means in practice: those two toggles now swing 20 points of the total, more than any single input except the sliders, and a client's answer to "is leaving money to heirs important" moves them a full interpretation band on its own. Worth knowing when you're sitting across from someone and they hesitate on that question.
+
+Score 100 now recommends exactly 50%. Under the old logic the practical ceiling was 95, so the tool always landed below the industry maximum. Now a perfect-score client gets the same number Fidelity would push them toward. Defensible — reaching 100 requires expected age 100, a 60%+ income gap, no heirs concern, no healthcare concern, and maximum discomfort with markets, which is a genuinely extreme profile. But given that the tool's whole argument is "the ceiling is a maximum, not a target," you may want the top of your own scale to stop short of it. Capping the recommendation at 45% would preserve the point. That's a positioning decision, not a bug.
+
+Sections 7 and 8 have now been proposed three times and run zero times. It keeps offering them as future work rather than doing them. Stop accepting the proposal and give it the two sections alone, with nothing else in the message to distract it:
+
+Run only these two audits. Do not make any other changes.
+
+STORAGE AND NETWORK AUDIT
+Search the entire codebase for: localStorage, sessionStorage, indexedDB,
+document.cookie, fetch, XMLHttpRequest, axios, and any analytics or tracking
+snippet. Report every occurrence with file and line number. The only
+acceptable external request is the jsPDF CDN load. The app displays a claim
+that nothing is transmitted or stored — confirm the code honors it and flag
+anything that does not.
+
+PDF PARITY
+Generate the PDF for golden cases A, B, and C. For each, confirm every
+number matches the results screen exactly, the correct consideration blocks
+appear, and there is no literal $X, undefined, NaN, or unrendered
+placeholder. Then generate with $9,999,999 investable assets and confirm no
+text overflow or truncation.
+
+And regardless of what it reports back on the PDF, open one yourself and look at it. jsPDF fails silently on images — an agent reading the code will confirm the logo call is present and correctly formed while the actual page has a blank rectangle where your logo should be.

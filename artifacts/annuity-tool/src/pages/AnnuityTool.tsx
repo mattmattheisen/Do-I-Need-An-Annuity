@@ -666,9 +666,8 @@ export default function AnnuityTool() {
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                       <Input
                         id="employmentIncome"
-                        type="number"
-                        min="0"
-                        inputMode="decimal"
+                        type="text"
+                        inputMode="numeric"
                         value={formData.employmentIncome}
                         onChange={(e) => updateField('employmentIncome', e.target.value)}
                         className="pl-7"
@@ -684,9 +683,8 @@ export default function AnnuityTool() {
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                       <Input
                         id="selfEmploymentIncome"
-                        type="number"
-                        min="0"
-                        inputMode="decimal"
+                        type="text"
+                        inputMode="numeric"
                         value={formData.selfEmploymentIncome}
                         onChange={(e) => updateField('selfEmploymentIncome', e.target.value)}
                         className="pl-7"
@@ -709,9 +707,8 @@ export default function AnnuityTool() {
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                       <Input
                         id="socialSecurityAnnual"
-                        type="number"
-                        min="0"
-                        inputMode="decimal"
+                        type="text"
+                        inputMode="numeric"
                         value={formData.socialSecurityAnnual}
                         onChange={(e) => updateField('socialSecurityAnnual', e.target.value)}
                         className="pl-7"
@@ -727,9 +724,8 @@ export default function AnnuityTool() {
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                       <Input
                         id="pensionAnnual"
-                        type="number"
-                        min="0"
-                        inputMode="decimal"
+                        type="text"
+                        inputMode="numeric"
                         value={formData.pensionAnnual}
                         onChange={(e) => updateField('pensionAnnual', e.target.value)}
                         className="pl-7"
@@ -745,9 +741,8 @@ export default function AnnuityTool() {
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                       <Input
                         id="otherGuaranteedIncome"
-                        type="number"
-                        min="0"
-                        inputMode="decimal"
+                        type="text"
+                        inputMode="numeric"
                         value={formData.otherGuaranteedIncome}
                         onChange={(e) => updateField('otherGuaranteedIncome', e.target.value)}
                         className="pl-7"
@@ -819,9 +814,8 @@ export default function AnnuityTool() {
                   </span>
                   <Input
                     id="investableAssets"
-                    type="number"
-                    min="0"
-                    inputMode="decimal"
+                    type="text"
+                    inputMode="numeric"
                     value={formData.investableAssets}
                     onChange={(e) => updateField('investableAssets', e.target.value)}
                     className="pl-7"
@@ -843,9 +837,8 @@ export default function AnnuityTool() {
                   </span>
                   <Input
                     id="spendingGoal"
-                    type="number"
-                    min="1"
-                    inputMode="decimal"
+                    type="text"
+                    inputMode="numeric"
                     value={formData.spendingGoal}
                     onChange={(e) => updateField('spendingGoal', e.target.value)}
                     className="pl-7"

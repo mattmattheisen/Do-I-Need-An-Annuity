@@ -34,6 +34,11 @@ const SCENARIO_OPTIONS = [
 
 export default function AnnuityTool() {
   const [step, setStep] = useState(0);
+
+  // Scroll to top whenever the step changes
+  React.useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [step]);
   const [formData, setFormData] = useState<FormData>({
     currentAge: '',
     expectedAge: '90',

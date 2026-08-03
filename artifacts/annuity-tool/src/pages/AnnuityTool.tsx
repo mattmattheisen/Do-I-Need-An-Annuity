@@ -9,7 +9,14 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 interface FormData {
   currentAge: string;
   expectedAge: string;
-  guaranteedIncome: string;
+  // Employment income is collected for context but excluded from the annuity
+  // income-gap calculation — it is typically non-recurring in retirement.
+  employmentIncome: string;
+  selfEmploymentIncome: string;
+  // These three form the guaranteed income total used in the annuity analysis.
+  socialSecurityAnnual: string;
+  pensionAnnual: string;
+  otherGuaranteedIncome: string;
   heirsImportant: boolean;
   healthcareConcern: boolean;
   investableAssets: string;
@@ -26,11 +33,15 @@ const SCENARIO_OPTIONS = [
 ];
 
 export default function AnnuityTool() {
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(0);
   const [formData, setFormData] = useState<FormData>({
     currentAge: '',
     expectedAge: '90',
-    guaranteedIncome: '',
+    employmentIncome: '',
+    selfEmploymentIncome: '',
+    socialSecurityAnnual: '',
+    pensionAnnual: '',
+    otherGuaranteedIncome: '',
     heirsImportant: false,
     healthcareConcern: false,
     investableAssets: '',
@@ -70,12 +81,8 @@ export default function AnnuityTool() {
     if (!newErrors.currentAge && !newErrors.expectedAge && expectedAge <= currentAge) {
       newErrors.expectedAge = 'Expected age must be greater than current age';
     }
-    // Guaranteed income: required field; 0 is a legitimate value
-    if (formData.guaranteedIncome === '') {
-      newErrors.guaranteedIncome = 'Please enter your guaranteed annual income (enter 0 if none)';
-    } else if (isNaN(Number(formData.guaranteedIncome)) || Number(formData.guaranteedIncome) < 0) {
-      newErrors.guaranteedIncome = 'Please enter a valid amount (0 or greater)';
-    }
+    // Income fields default to blank → treated as 0. No individual field is
+    // required; an advisor may leave items blank for fields not applicable.
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -108,15 +115,19 @@ export default function AnnuityTool() {
   };
 
   const handleBack = () => {
-    setStep((prev) => prev - 1);
+    setStep((prev) => Math.max(0, prev - 1));
   };
 
   const handleStartOver = () => {
-    setStep(1);
+    setStep(0);
     setFormData({
       currentAge: '',
       expectedAge: '90',
-      guaranteedIncome: '',
+      employmentIncome: '',
+      selfEmploymentIncome: '',
+      socialSecurityAnnual: '',
+      pensionAnnual: '',
+      otherGuaranteedIncome: '',
       heirsImportant: false,
       healthcareConcern: false,
       investableAssets: '',
@@ -131,7 +142,12 @@ export default function AnnuityTool() {
     // after a rapid Back → forward navigation before validation fires)
     const currentAge   = Number(formData.currentAge)    || 0;
     const expectedAge  = Number(formData.expectedAge)   || 0;
-    const guaranteedIncome = Number(formData.guaranteedIncome) || 0;
+    // Guaranteed income for the annuity gap = SS + pension + other guaranteed.
+    // Employment / self-employment income is collected for context only.
+    const totalGuaranteedIncome =
+      (Number(formData.socialSecurityAnnual)   || 0) +
+      (Number(formData.pensionAnnual)          || 0) +
+      (Number(formData.otherGuaranteedIncome)  || 0);
     const investableAssets = Number(formData.investableAssets) || 0;
     const spendingGoal = Number(formData.spendingGoal)  || 0;
     const sliderValue = formData.marketComfort;
@@ -143,7 +159,7 @@ export default function AnnuityTool() {
 
     // Component 2: Income Gap (0-25)
     // gap is reused throughout the cap chain below
-    const gap = Math.max(0, spendingGoal - guaranteedIncome);
+    const gap = Math.max(0, spendingGoal - totalGuaranteedIncome);
     const gapPct = spendingGoal > 0 ? gap / spendingGoal : 0;
     const incomeGapScore = Math.min(25, Math.max(0, (gapPct / 0.6) * 25));
 
@@ -156,15 +172,21 @@ export default function AnnuityTool() {
     // for age 67). The UI displays it rounded to one decimal (6.8%) for readability,
     // but all income calculations use the unrounded value.
     const getPayoutRate = (age: number): number => {
+      // Updated breakpoints reflecting current SPIA market rates.
+      // Internal math uses full-precision interpolated values; display rounds
+      // to one decimal.
       const breakpoints: [number, number][] = [
-        [60, 0.058],
-        [65, 0.064],
-        [70, 0.073],
-        [75, 0.085],
-        [80, 0.102],
+        [50, 0.045],
+        [55, 0.062],
+        [60, 0.070],
+        [65, 0.077],
+        [70, 0.092],
+        [75, 0.110],
+        [80, 0.135],
+        [85, 0.175],
       ];
-      if (age <= 60) return 0.058;
-      if (age >= 80) return 0.102;
+      if (age <= 50) return 0.045;
+      if (age >= 85) return 0.175;
       for (let i = 0; i < breakpoints.length - 1; i++) {
         const [a1, r1] = breakpoints[i];
         const [a2, r2] = breakpoints[i + 1];
@@ -241,6 +263,7 @@ export default function AnnuityTool() {
       ceilingAmount: ceilingDollarAmount,
       gap,
       gapPct,
+      totalGuaranteedIncome,
       remainingAssets: investableAssets - finalDollarAmount,
     };
   };
@@ -285,12 +308,40 @@ export default function AnnuityTool() {
       y += 6;
       doc.text(`Expected age: ${formData.expectedAge}`, leftMargin, y);
       y += 6;
+      // Guaranteed income breakdown
+      const ss    = Number(formData.socialSecurityAnnual)  || 0;
+      const pen   = Number(formData.pensionAnnual)         || 0;
+      const other = Number(formData.otherGuaranteedIncome) || 0;
+      const emp   = (Number(formData.employmentIncome) || 0) + (Number(formData.selfEmploymentIncome) || 0);
+      if (ss > 0) {
+        doc.text(`Social Security: ${formatCurrency(ss)}/year`, leftMargin, y);
+        y += 6;
+      }
+      if (pen > 0) {
+        doc.text(`Pension: ${formatCurrency(pen)}/year`, leftMargin, y);
+        y += 6;
+      }
+      if (other > 0) {
+        doc.text(`Other guaranteed income: ${formatCurrency(other)}/year`, leftMargin, y);
+        y += 6;
+      }
       doc.text(
-        `Guaranteed income: ${formatCurrency(Number(formData.guaranteedIncome))}/year`,
+        `Total guaranteed income: ${formatCurrency(ss + pen + other)}/year`,
         leftMargin,
         y
       );
       y += 6;
+      if (emp > 0) {
+        doc.setFont('helvetica', 'italic');
+        doc.text(
+          `Employment income: ${formatCurrency(emp)}/year (context only — not used in analysis)`,
+          leftMargin,
+          y,
+          { maxWidth: 170 }
+        );
+        doc.setFont('helvetica', 'normal');
+        y += 8;
+      }
       doc.text(`Leaving money to heirs: ${formData.heirsImportant ? 'Yes' : 'No'}`, leftMargin, y);
       y += 6;
       doc.text(
@@ -504,10 +555,35 @@ export default function AnnuityTool() {
 
       {/* Main Content */}
       <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* Progress */}
-        <div className="mb-8 text-center">
-          <p className="text-sm font-medium text-muted-foreground">Step {step} of 3</p>
-        </div>
+        {/* Progress — hidden on intro screen */}
+        {step > 0 && (
+          <div className="mb-8 text-center">
+            <p className="text-sm font-medium text-muted-foreground">Step {step} of 3</p>
+          </div>
+        )}
+
+        {/* Step 0: Intro */}
+        {step === 0 && (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <h2 className="text-3xl font-bold text-foreground">Do I Need An Annuity?</h2>
+            <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-muted-foreground">
+              This tool calculates your personalized suitability score for annuities in retirement
+              income planning. It surfaces the real trade-offs — permanence, illiquidity, inflation,
+              heir exclusion — without hedging.
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">3 steps · takes about 2 minutes</p>
+            <Button
+              onClick={() => setStep(1)}
+              className="mt-8"
+              data-testid="button-start-assessment"
+            >
+              Start Assessment
+            </Button>
+            <p className="mt-6 text-xs text-muted-foreground">
+              Everything you enter stays on your device. Nothing is sent anywhere.
+            </p>
+          </div>
+        )}
 
         {/* Step 1: Your Situation */}
         {step === 1 && (
@@ -566,28 +642,120 @@ export default function AnnuityTool() {
                 )}
               </div>
 
-              <div>
-                <Label htmlFor="guaranteedIncome" className="text-base font-medium">
-                  Annual income from Social Security and any pension ($/year)
-                </Label>
-                <div className="relative mt-2">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                    $
-                  </span>
-                  <Input
-                    id="guaranteedIncome"
-                    type="number"
-                    min="0"
-                    inputMode="decimal"
-                    value={formData.guaranteedIncome}
-                    onChange={(e) => updateField('guaranteedIncome', e.target.value)}
-                    className="pl-7"
-                    data-testid="input-guaranteed-income"
-                  />
+              {/* Income sources — split into employment (context only) and
+                  guaranteed retirement income (used in the annuity analysis) */}
+              <div className="space-y-4">
+                <div>
+                  <p className="text-base font-medium text-foreground">Income sources</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Only the guaranteed retirement income rows factor into the annuity analysis.
+                    Employment income is collected for context.
+                  </p>
                 </div>
-                {errors.guaranteedIncome && (
-                  <p className="mt-1 text-sm text-destructive">{errors.guaranteedIncome}</p>
-                )}
+
+                {/* Employment income — context only */}
+                <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Employment income (not used in annuity analysis)
+                  </p>
+                  <div>
+                    <Label htmlFor="employmentIncome" className="text-sm font-medium">
+                      W-2 employment income ($/year)
+                    </Label>
+                    <div className="relative mt-2">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                      <Input
+                        id="employmentIncome"
+                        type="number"
+                        min="0"
+                        inputMode="decimal"
+                        value={formData.employmentIncome}
+                        onChange={(e) => updateField('employmentIncome', e.target.value)}
+                        className="pl-7"
+                        data-testid="input-employment-income"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="selfEmploymentIncome" className="text-sm font-medium">
+                      Self-employment income ($/year)
+                    </Label>
+                    <div className="relative mt-2">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                      <Input
+                        id="selfEmploymentIncome"
+                        type="number"
+                        min="0"
+                        inputMode="decimal"
+                        value={formData.selfEmploymentIncome}
+                        onChange={(e) => updateField('selfEmploymentIncome', e.target.value)}
+                        className="pl-7"
+                        data-testid="input-self-employment-income"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Guaranteed retirement income — used in annuity analysis */}
+                <div className="rounded-lg border border-border bg-card p-4 space-y-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Guaranteed retirement income (used in annuity analysis)
+                  </p>
+                  <div>
+                    <Label htmlFor="socialSecurityAnnual" className="text-sm font-medium">
+                      Social Security annual benefit ($/year)
+                    </Label>
+                    <div className="relative mt-2">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                      <Input
+                        id="socialSecurityAnnual"
+                        type="number"
+                        min="0"
+                        inputMode="decimal"
+                        value={formData.socialSecurityAnnual}
+                        onChange={(e) => updateField('socialSecurityAnnual', e.target.value)}
+                        className="pl-7"
+                        data-testid="input-social-security"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="pensionAnnual" className="text-sm font-medium">
+                      Pension or other guaranteed income ($/year)
+                    </Label>
+                    <div className="relative mt-2">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                      <Input
+                        id="pensionAnnual"
+                        type="number"
+                        min="0"
+                        inputMode="decimal"
+                        value={formData.pensionAnnual}
+                        onChange={(e) => updateField('pensionAnnual', e.target.value)}
+                        className="pl-7"
+                        data-testid="input-pension"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="otherGuaranteedIncome" className="text-sm font-medium">
+                      Other guaranteed income — annuities, rental, etc. ($/year)
+                    </Label>
+                    <div className="relative mt-2">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                      <Input
+                        id="otherGuaranteedIncome"
+                        type="number"
+                        min="0"
+                        inputMode="decimal"
+                        value={formData.otherGuaranteedIncome}
+                        onChange={(e) => updateField('otherGuaranteedIncome', e.target.value)}
+                        className="pl-7"
+                        data-testid="input-other-income"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-4 pt-4">
@@ -760,6 +928,80 @@ export default function AnnuityTool() {
               </p>
             </div>
 
+            {/* Scoring Methodology Explainer */}
+            <div>
+              <h2 className="mb-4 text-xl font-semibold text-foreground">
+                How This Score Was Calculated
+              </h2>
+              <p className="mb-5 text-sm text-muted-foreground">
+                Your suitability score combines four equally weighted components. Each represents a
+                different dimension of the annuity decision.
+              </p>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="rounded-lg border-l-4 border-primary bg-card p-4">
+                  <p className="text-sm font-semibold text-foreground">Longevity</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    Longer planning horizons favor fixed income security; shorter ones favor
+                    flexibility and market participation.
+                  </p>
+                  <p className="mt-3 rounded bg-muted px-3 py-2 text-xs text-foreground">
+                    Planning horizon:{' '}
+                    <strong>
+                      {Number(formData.expectedAge) - Number(formData.currentAge)} years
+                    </strong>{' '}
+                    → {Math.round(results.longevityScore)}/25
+                  </p>
+                </div>
+                <div className="rounded-lg border-l-4 border-primary bg-card p-4">
+                  <p className="text-sm font-semibold text-foreground">Income Gap</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    The annual shortfall between guaranteed retirement income and your spending
+                    goal. A larger gap suggests more benefit from annuity income.
+                  </p>
+                  <p className="mt-3 rounded bg-muted px-3 py-2 text-xs text-foreground">
+                    Gap:{' '}
+                    <strong>
+                      {formatCurrency(results.gap)}/year ({(results.gapPct * 100).toFixed(0)}%)
+                    </strong>{' '}
+                    → {Math.round(results.incomeGapScore)}/25
+                  </p>
+                </div>
+                <div className="rounded-lg border-l-4 border-primary bg-card p-4">
+                  <p className="text-sm font-semibold text-foreground">Flexibility Need</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    Reflects your need to access capital for heirs or unexpected healthcare costs.
+                    Annuities lock capital permanently; competing needs reduce the score.
+                  </p>
+                  <p className="mt-3 rounded bg-muted px-3 py-2 text-xs text-foreground">
+                    Heirs: <strong>{formData.heirsImportant ? 'yes' : 'no'}</strong>, Healthcare:{' '}
+                    <strong>{formData.healthcareConcern ? 'yes' : 'no'}</strong> →{' '}
+                    {Math.round(results.flexibilityNeed)}/25
+                  </p>
+                </div>
+                <div className="rounded-lg border-l-4 border-primary bg-card p-4">
+                  <p className="text-sm font-semibold text-foreground">Behavioral Fit</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    How you respond to market downturns. Investors who hold steady can tolerate
+                    locking away capital; those who sell cannot.
+                  </p>
+                  <p className="mt-3 rounded bg-muted px-3 py-2 text-xs text-foreground">
+                    Response:{' '}
+                    <strong>"{SCENARIO_OPTIONS[formData.marketComfort]?.label}"</strong> →{' '}
+                    {Math.round(results.behavioralFitScore)}/25
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 rounded-lg border-l-4 border-amber-400 bg-amber-50 p-4">
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  <strong className="text-foreground">Why equal weighting?</strong> No single
+                  factor should override the others. Even a high income gap is problematic if you
+                  need liquidity for healthcare or must leave assets to heirs. Conversely, excellent
+                  behavioral fit doesn't justify an annuity if your guaranteed income already covers
+                  your full spending goal.
+                </p>
+              </div>
+            </div>
+
             {/* Score Breakdown */}
             <div>
               <h2 className="mb-4 text-xl font-semibold text-foreground">Score Breakdown</h2>
@@ -790,9 +1032,9 @@ export default function AnnuityTool() {
                     </span>
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Your existing guaranteed income covers{' '}
-                    {((1 - results.gapPct) * 100).toFixed(0)}% of your spending goal, leaving a{' '}
-                    {(results.gapPct * 100).toFixed(0)}% gap to fill.
+                    Your guaranteed income ({formatCurrency(results.totalGuaranteedIncome)}/year)
+                    covers {((1 - results.gapPct) * 100).toFixed(0)}% of your spending goal,
+                    leaving a {(results.gapPct * 100).toFixed(0)}% gap to fill.
                   </p>
                 </div>
 
@@ -810,9 +1052,7 @@ export default function AnnuityTool() {
                         ? '–10 for heirs priority'
                         : formData.healthcareConcern
                           ? '–10 for healthcare concern'
-                          : !results.concentrationPenaltyFired
-                            ? 'No flexibility deductions applied'
-                            : null}
+                          : 'No flexibility deductions applied'}
                   </p>
                 </div>
 
@@ -1057,62 +1297,65 @@ export default function AnnuityTool() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
                   <div
-                    style={{
-                      borderLeft: '3px solid #D4D4D4',
-                      padding: '20px',
-                      fontSize: '15px',
-                      lineHeight: '1.7',
-                      color: '#1A1A1A',
-                    }}
+                    style={{ borderLeft: '3px solid #D4D4D4', padding: '20px', fontSize: '15px', lineHeight: '1.7', color: '#1A1A1A' }}
                     data-testid="limitation-insurer"
                   >
                     <span style={{ fontWeight: 700 }}>The insurer.</span>{' '}
-                    Payments depend on a single company's ability to pay for decades.
+                    Payments depend on a single company's ability to pay for decades. This analysis
+                    does not evaluate credit quality, claims history, or default risk. Research the
+                    insurer's ratings (AM Best, Moody's, S&P) before any purchase.
                   </div>
 
                   <div
-                    style={{
-                      borderLeft: '3px solid #D4D4D4',
-                      padding: '20px',
-                      fontSize: '15px',
-                      lineHeight: '1.7',
-                      color: '#1A1A1A',
-                    }}
+                    style={{ borderLeft: '3px solid #D4D4D4', padding: '20px', fontSize: '15px', lineHeight: '1.7', color: '#1A1A1A' }}
                     data-testid="limitation-tax"
                   >
                     <span style={{ fontWeight: 700 }}>Tax treatment.</span>{' '}
-                    Annuity income is taxed as ordinary income. Depending on your bracket, net income after tax
-                    may be meaningfully lower than the figure shown here.
+                    The tool does not incorporate tax efficiency, which varies by annuity type,
+                    funding source, and individual circumstances. Annuity income is generally taxed
+                    as ordinary income — net income after tax may be meaningfully lower than the
+                    figure shown here. Consult a tax advisor.
                   </div>
 
                   <div
-                    style={{
-                      borderLeft: '3px solid #D4D4D4',
-                      padding: '20px',
-                      fontSize: '15px',
-                      lineHeight: '1.7',
-                      color: '#1A1A1A',
-                    }}
+                    style={{ borderLeft: '3px solid #D4D4D4', padding: '20px', fontSize: '15px', lineHeight: '1.7', color: '#1A1A1A' }}
+                    data-testid="limitation-inflation"
+                  >
+                    <span style={{ fontWeight: 700 }}>Inflation.</span>{' '}
+                    Fixed annuity payouts do not adjust for inflation. A payout that covers your
+                    spending today loses roughly half its purchasing power over 25 years at 3%
+                    inflation. Some annuities offer inflation escalators, which reduce the starting
+                    payout in exchange for growth.
+                  </div>
+
+                  <div
+                    style={{ borderLeft: '3px solid #D4D4D4', padding: '20px', fontSize: '15px', lineHeight: '1.7', color: '#1A1A1A' }}
+                    data-testid="limitation-life-expectancy"
+                  >
+                    <span style={{ fontWeight: 700 }}>Life expectancy.</span>{' '}
+                    The score uses your stated life expectancy, not an actuarial projection.
+                    Underestimating longevity makes annuitization look less attractive than it is;
+                    overestimating does the reverse.
+                  </div>
+
+                  <div
+                    style={{ borderLeft: '3px solid #D4D4D4', padding: '20px', fontSize: '15px', lineHeight: '1.7', color: '#1A1A1A' }}
+                    data-testid="limitation-sequence"
+                  >
+                    <span style={{ fontWeight: 700 }}>Sequence of returns.</span>{' '}
+                    The tool does not run multi-decade simulations comparing an annuity path against
+                    a portfolio withdrawal strategy under varying market conditions. That comparison
+                    requires a full financial plan.
+                  </div>
+
+                  <div
+                    style={{ borderLeft: '3px solid #D4D4D4', padding: '20px', fontSize: '15px', lineHeight: '1.7', color: '#1A1A1A' }}
                     data-testid="limitation-payout-rates"
                   >
                     <span style={{ fontWeight: 700 }}>Actual payout rates.</span>{' '}
-                    The income estimates here use approximate market rates and will differ from any real quote.
-                    Rates vary by insurer, state, and the exact date of purchase.
-                  </div>
-
-                  <div
-                    style={{
-                      borderLeft: '3px solid #D4D4D4',
-                      padding: '20px',
-                      fontSize: '15px',
-                      lineHeight: '1.7',
-                      color: '#1A1A1A',
-                    }}
-                    data-testid="limitation-portfolio"
-                  >
-                    <span style={{ fontWeight: 700 }}>Your full picture.</span>{' '}
-                    This tool does not know your complete financial situation — other assets, liabilities,
-                    tax accounts, or existing annuities. A licensed advisor should review any decision before you act.
+                    The income estimates here use approximate market rates and will differ from any
+                    real quote. Rates vary by insurer, state, and the exact date of purchase. Obtain
+                    a firm quote before making any decision.
                   </div>
 
                 </div>

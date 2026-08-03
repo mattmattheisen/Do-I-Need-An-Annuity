@@ -1,0 +1,1491 @@
+import React, { useState, useEffect } from 'react';
+import jsPDF from 'jspdf';
+
+const BulwarkAnnuitySuitability = () => {
+  const [step, setStep] = useState(1);
+  const [formData, setFormData] = useState({
+    age: '',
+    employmentIncome: 0,
+    selfEmploymentIncome: 0,
+    socialSecurityAnnual: 0,
+    pensionAnnual: 0,
+    otherGuaranteedIncome: 0,
+    investableAssets: 0,
+    annualSpending: '',
+    lifeExpectancy: '',
+    heirsImportance: 'moderate',
+    healthcareConcern: 'no',
+    marketDownturnResponse: '',
+  });
+
+  const [results, setResults] = useState(null);
+  const [mortTableToggle, setMortTableToggle] = useState('iam2012');
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [step]);
+
+  const handleChange = (e) => {
+    const { name, value, type } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'number' ? parseFloat(value) || 0 : value
+    }));
+  };
+
+  const getPayoutRate = (age) => {
+    const rates = {
+      50: 0.045, 52: 0.058, 55: 0.062, 60: 0.070, 65: 0.077,
+      70: 0.092, 75: 0.110, 80: 0.135, 85: 0.175
+    };
+    if (rates[age]) return rates[age];
+    const ages = Object.keys(rates).map(Number);
+    const lower = ages.filter(a => a <= age).pop();
+    const upper = ages.filter(a => a > age)[0];
+    if (!upper) return rates[lower];
+    const ratio = (age - lower) / (upper - lower);
+    return rates[lower] + ratio * (rates[upper] - rates[lower]);
+  };
+
+  const calculateScore = () => {
+    const age = parseInt(formData.age);
+    const totalGuaranteedIncome = formData.socialSecurityAnnual + 
+                                  formData.pensionAnnual + 
+                                  formData.otherGuaranteedIncome;
+    const annualSpending = parseFloat(formData.annualSpending);
+    const lifeExpectancy = parseInt(formData.lifeExpectancy);
+
+    // LONGEVITY COMPONENT (0-25)
+    const planningHorizon = lifeExpectancy - age;
+    let longevityScore = 0;
+    if (planningHorizon < 10) longevityScore = 5;
+    else if (planningHorizon < 15) longevityScore = 10;
+    else if (planningHorizon < 20) longevityScore = 18;
+    else longevityScore = 25;
+
+    // INCOME GAP COMPONENT (0-25)
+    const incomeGap = Math.max(0, annualSpending - totalGuaranteedIncome);
+    const gapPercentage = incomeGap / annualSpending;
+    let incomeGapScore = 0;
+    if (gapPercentage === 0) incomeGapScore = 0;
+    else if (gapPercentage < 0.15) incomeGapScore = 8;
+    else if (gapPercentage < 0.30) incomeGapScore = 15;
+    else if (gapPercentage < 0.50) incomeGapScore = 22;
+    else incomeGapScore = 25;
+
+    // FLEXIBILITY COMPONENT (0-25)
+    let flexibilityScore = 25;
+    if (formData.heirsImportance === 'high') flexibilityScore -= 10;
+    if (formData.healthcareConcern === 'yes') flexibilityScore -= 10;
+    flexibilityScore = Math.max(0, flexibilityScore);
+
+    // BEHAVIORAL FIT COMPONENT (0-25)
+    let behavioralScore = 0;
+    if (formData.marketDownturnResponse === 'hold') behavioralScore = 13;
+    else if (formData.marketDownturnResponse === 'reduce') behavioralScore = 10;
+    else if (formData.marketDownturnResponse === 'increaseHoldings') behavioralScore = 5;
+    else behavioralScore = 0;
+
+    const totalScore = longevityScore + incomeGapScore + flexibilityScore + behavioralScore;
+
+    // RECOMMENDATION CAP
+    const investableAssets = parseFloat(formData.investableAssets) || 0;
+    const maxAnnuityAmount = investableAssets * 0.50;
+    const payoutRate = getPayoutRate(age);
+    const maxRecommendedByIncome = incomeGap / payoutRate;
+    const recommendedAmount = Math.min(maxRecommendedByIncome, maxAnnuityAmount);
+    const recommendedPercentage = investableAssets > 0 
+      ? (recommendedAmount / investableAssets) * 100 
+      : 0;
+
+    const estimatedAnnualIncome = recommendedAmount * payoutRate;
+
+    return {
+      totalScore: Math.round(totalScore),
+      longevityScore,
+      incomeGapScore,
+      flexibilityScore,
+      behavioralScore,
+      incomeGap,
+      incomeGapPercentage: (gapPercentage * 100).toFixed(1),
+      totalGuaranteedIncome,
+      planningHorizon,
+      recommendedAmount: Math.round(recommendedAmount),
+      recommendedPercentage: recommendedPercentage.toFixed(1),
+      estimatedAnnualIncome: Math.round(estimatedAnnualIncome),
+      payoutRate: (payoutRate * 100).toFixed(1),
+      maxAnnuityAmount: Math.round(maxAnnuityAmount),
+      investableAssets: Math.round(investableAssets),
+    };
+  };
+
+  const generatePDF = (calculatedResults) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    let yPos = 20;
+
+    // Header
+    doc.setFontSize(20);
+    doc.text('Gambit Capital Management', 20, yPos);
+    doc.setFontSize(14);
+    doc.text('Annuity Suitability Analysis', 20, yPos + 10);
+
+    yPos += 30;
+
+    // Suitability Score
+    doc.setFontSize(28);
+    doc.setTextColor(0, 153, 102);
+    doc.text(String(calculatedResults.totalScore), 20, yPos);
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(12);
+    doc.text('Suitability Score (0–100)', 20, yPos + 10);
+
+    yPos += 25;
+
+    // Score Breakdown
+    doc.setFontSize(11);
+    doc.text('Score Components:', 20, yPos);
+    yPos += 8;
+    doc.setFontSize(10);
+    const scoreItems = [
+      `Longevity (${calculatedResults.planningHorizon}-year horizon): ${calculatedResults.longevityScore}/25`,
+      `Income Gap (${calculatedResults.incomeGapPercentage}% shortfall): ${calculatedResults.incomeGapScore}/25`,
+      `Flexibility Need: ${calculatedResults.flexibilityScore}/25`,
+      `Behavioral Fit: ${calculatedResults.behavioralScore}/25`
+    ];
+    scoreItems.forEach(item => {
+      doc.text(item, 25, yPos);
+      yPos += 7;
+    });
+
+    yPos += 8;
+
+    // Recommendation
+    doc.setFontSize(11);
+    doc.text('Right-Sized Recommendation:', 20, yPos);
+    yPos += 8;
+    doc.setFontSize(10);
+    const recItems = [
+      `Recommended annuity amount: $${calculatedResults.recommendedAmount.toLocaleString()}`,
+      `As percentage of investable assets: ${calculatedResults.recommendedPercentage}%`,
+      `Estimated annual income: $${calculatedResults.estimatedAnnualIncome.toLocaleString()}/year`,
+      `Based on payout rate: ${calculatedResults.payoutRate}% at age ${formData.age}`
+    ];
+    recItems.forEach(item => {
+      doc.text(item, 25, yPos);
+      yPos += 7;
+    });
+
+    yPos += 8;
+
+    // Key considerations
+    if (yPos > pageHeight - 40) {
+      doc.addPage();
+      yPos = 20;
+    }
+    
+    doc.setFontSize(11);
+    doc.text('Key Considerations:', 20, yPos);
+    yPos += 8;
+    doc.setFontSize(10);
+
+    const considerations = [];
+    if (calculatedResults.flexibilityScore < 10) {
+      considerations.push('• Heir priority or healthcare concern limits suitability');
+    }
+    if (calculatedResults.incomeGap > 0) {
+      considerations.push(`• Annual income gap of $${Math.round(calculatedResults.incomeGap).toLocaleString()} exists`);
+    }
+    if (calculatedResults.recommendedPercentage > 30) {
+      considerations.push('• Annuity allocation is significant; ensure adequate liquid reserves remain');
+    }
+    if (calculatedResults.behavioralScore < 13) {
+      considerations.push('• Market volatility response suggests caution with annuity lock-in');
+    }
+
+    considerations.forEach(item => {
+      doc.text(item, 25, yPos);
+      yPos += 7;
+    });
+
+    yPos += 8;
+
+    // Important disclaimers
+    if (yPos > pageHeight - 50) {
+      doc.addPage();
+      yPos = 20;
+    }
+
+    doc.setFontSize(11);
+    doc.setTextColor(100, 0, 0);
+    doc.text('Important Disclosures:', 20, yPos);
+    doc.setTextColor(0, 0, 0);
+    yPos += 8;
+    doc.setFontSize(9);
+
+    const disclosures = [
+      '• Annuities are permanent purchases. You cannot recover capital or access the underlying assets.',
+      '• Inflation erodes purchasing power over decades. A payout today loses ~50% value in 25 years.',
+      '• Annuity payments do not pass to heirs. Proceeds revert to the insurer upon death.',
+      '• This analysis does not evaluate insurer credit quality or default risk.',
+      '• Consult a financial advisor before making any annuity purchase decision.'
+    ];
+
+    disclosures.forEach(item => {
+      const lines = doc.splitTextToSize(item, pageWidth - 40);
+      lines.forEach(line => {
+        if (yPos > pageHeight - 20) {
+          doc.addPage();
+          yPos = 20;
+        }
+        doc.text(line, 25, yPos);
+        yPos += 6;
+      });
+    });
+
+    return doc;
+  };
+
+  const handleCalculate = () => {
+    const calculated = calculateScore();
+    setResults(calculated);
+    setStep(3);
+  };
+
+  // STEP 1: Income & Assets
+  if (step === 1) {
+    return (
+      <div className="tool-container">
+        <header className="tool-header">
+          <h1>Gambit Capital Management</h1>
+        </header>
+        
+        <div className="step-indicator">Step 1 of 3</div>
+        
+        <div className="navigation">
+          <button onClick={() => setStep(0)} className="back-link">← Back</button>
+          <button onClick={() => { setStep(1); setResults(null); }} className="start-over-link">Start over</button>
+        </div>
+
+        <div className="step-content">
+          <h2>Income & Assets</h2>
+          
+          <div className="form-group">
+            <label>Your current age</label>
+            <input
+              type="number"
+              name="age"
+              value={formData.age}
+              onChange={handleChange}
+              min="40"
+              max="100"
+            />
+          </div>
+
+          <div className="form-section">
+            <h3>Annual Income You Currently Receive or Expect to Receive</h3>
+            
+            <div className="form-group">
+              <label>Employment income (W-2 wages)</label>
+              <div className="input-prefix">$</div>
+              <input
+                type="number"
+                name="employmentIncome"
+                value={formData.employmentIncome}
+                onChange={handleChange}
+                min="0"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Self-employment income</label>
+              <div className="input-prefix">$</div>
+              <input
+                type="number"
+                name="selfEmploymentIncome"
+                value={formData.selfEmploymentIncome}
+                onChange={handleChange}
+                min="0"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Social Security annual benefit</label>
+              <div className="input-prefix">$</div>
+              <input
+                type="number"
+                name="socialSecurityAnnual"
+                value={formData.socialSecurityAnnual}
+                onChange={handleChange}
+                min="0"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Pension or other guaranteed income (annual)</label>
+              <div className="input-prefix">$</div>
+              <input
+                type="number"
+                name="pensionAnnual"
+                value={formData.pensionAnnual}
+                onChange={handleChange}
+                min="0"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Other guaranteed income sources (annuities, rental, etc.)</label>
+              <div className="input-prefix">$</div>
+              <input
+                type="number"
+                name="otherGuaranteedIncome"
+                value={formData.otherGuaranteedIncome}
+                onChange={handleChange}
+                min="0"
+              />
+            </div>
+          </div>
+
+          <div className="form-section">
+            <h3>Assets & Spending</h3>
+            
+            <div className="form-group">
+              <label>Investable assets (retirement accounts, taxable investments, etc.)</label>
+              <div className="input-prefix">$</div>
+              <input
+                type="number"
+                name="investableAssets"
+                value={formData.investableAssets}
+                onChange={handleChange}
+                min="0"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Annual spending goal (what you need to spend per year)</label>
+              <div className="input-prefix">$</div>
+              <input
+                type="number"
+                name="annualSpending"
+                value={formData.annualSpending}
+                onChange={handleChange}
+                min="0"
+              />
+            </div>
+          </div>
+
+          <button onClick={() => setStep(2)} className="next-button">Next</button>
+        </div>
+
+        <style>{`
+          .tool-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f9f9f9;
+            min-height: 100vh;
+          }
+
+          .tool-header {
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 16px;
+            margin-bottom: 24px;
+          }
+
+          .tool-header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+          }
+
+          .step-indicator {
+            text-align: center;
+            color: #999;
+            font-size: 14px;
+            margin-bottom: 24px;
+          }
+
+          .navigation {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 32px;
+            font-size: 14px;
+          }
+
+          .back-link, .start-over-link {
+            background: none;
+            border: none;
+            color: #0099AA;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+          }
+
+          .back-link:hover, .start-over-link:hover {
+            text-decoration: underline;
+          }
+
+          .step-content {
+            background: white;
+            padding: 32px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+          }
+
+          .step-content h2 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-top: 0;
+            margin-bottom: 32px;
+            color: #333;
+          }
+
+          .form-section {
+            margin-bottom: 32px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid #f0f0f0;
+          }
+
+          .form-section:last-child {
+            border-bottom: none;
+            margin-bottom: 24px;
+          }
+
+          .form-section h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 0;
+            margin-bottom: 16px;
+          }
+
+          .form-group {
+            margin-bottom: 20px;
+            position: relative;
+          }
+
+          .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 8px;
+          }
+
+          .form-group input {
+            width: 100%;
+            padding: 12px;
+            padding-left: 28px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+          }
+
+          .form-group input:focus {
+            outline: none;
+            border-color: #0099AA;
+            box-shadow: 0 0 0 2px rgba(0, 153, 170, 0.1);
+          }
+
+          .input-prefix {
+            position: absolute;
+            left: 12px;
+            top: 36px;
+            color: #999;
+            font-size: 14px;
+          }
+
+          .next-button {
+            background: #009966;
+            color: white;
+            border: none;
+            padding: 12px 32px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 16px;
+            width: 100%;
+          }
+
+          .next-button:hover {
+            background: #007755;
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  // STEP 2: Personal Factors
+  if (step === 2) {
+    return (
+      <div className="tool-container">
+        <header className="tool-header">
+          <h1>Gambit Capital Management</h1>
+        </header>
+        
+        <div className="step-indicator">Step 2 of 3</div>
+        
+        <div className="navigation">
+          <button onClick={() => setStep(1)} className="back-link">← Back</button>
+          <button onClick={() => { setStep(1); setResults(null); }} className="start-over-link">Start over</button>
+        </div>
+
+        <div className="step-content">
+          <h2>Personal Factors</h2>
+          
+          <div className="form-group">
+            <label>How old do you expect to live to?</label>
+            <input
+              type="number"
+              name="lifeExpectancy"
+              value={formData.lifeExpectancy}
+              onChange={handleChange}
+              min="70"
+              max="110"
+            />
+            <small>Use a realistic estimate; avoid extremes. 85–92 is typical.</small>
+          </div>
+
+          <div className="form-group">
+            <label>How important is it to leave money to heirs?</label>
+            <select
+              name="heirsImportance"
+              value={formData.heirsImportance}
+              onChange={handleChange}
+            >
+              <option value="low">Not important</option>
+              <option value="moderate">Somewhat important</option>
+              <option value="high">Very important</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label>Are you concerned about accessing assets for unexpected healthcare costs?</label>
+            <select
+              name="healthcareConcern"
+              value={formData.healthcareConcern}
+              onChange={handleChange}
+            >
+              <option value="no">No</option>
+              <option value="yes">Yes</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label>When markets drop 20%, your instinct is to:</label>
+            <select
+              name="marketDownturnResponse"
+              value={formData.marketDownturnResponse}
+              onChange={handleChange}
+            >
+              <option value="">— Select one —</option>
+              <option value="sell">Sell to avoid further losses</option>
+              <option value="reduce">Reduce my equity exposure</option>
+              <option value="hold">Hold what I have and wait it out</option>
+              <option value="increaseHoldings">Increase holdings (buy the dip)</option>
+            </select>
+          </div>
+
+          <div className="button-group">
+            <button onClick={() => setStep(1)} className="back-button">Back</button>
+            <button onClick={handleCalculate} className="calculate-button">Calculate Suitability</button>
+          </div>
+        </div>
+
+        <style>{`
+          .tool-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f9f9f9;
+            min-height: 100vh;
+          }
+
+          .tool-header {
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 16px;
+            margin-bottom: 24px;
+          }
+
+          .tool-header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+          }
+
+          .step-indicator {
+            text-align: center;
+            color: #999;
+            font-size: 14px;
+            margin-bottom: 24px;
+          }
+
+          .navigation {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 32px;
+            font-size: 14px;
+          }
+
+          .back-link, .start-over-link {
+            background: none;
+            border: none;
+            color: #0099AA;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+          }
+
+          .back-link:hover, .start-over-link:hover {
+            text-decoration: underline;
+          }
+
+          .step-content {
+            background: white;
+            padding: 32px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+          }
+
+          .step-content h2 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-top: 0;
+            margin-bottom: 32px;
+            color: #333;
+          }
+
+          .form-group {
+            margin-bottom: 24px;
+          }
+
+          .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 8px;
+          }
+
+          .form-group input,
+          .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+          }
+
+          .form-group input:focus,
+          .form-group select:focus {
+            outline: none;
+            border-color: #0099AA;
+            box-shadow: 0 0 0 2px rgba(0, 153, 170, 0.1);
+          }
+
+          .form-group small {
+            display: block;
+            color: #999;
+            font-size: 12px;
+            margin-top: 6px;
+          }
+
+          .button-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 32px;
+          }
+
+          .back-button {
+            background: #f0f0f0;
+            color: #333;
+            border: 1px solid #ddd;
+            padding: 12px 32px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 4px;
+            cursor: pointer;
+            flex: 1;
+          }
+
+          .back-button:hover {
+            background: #e8e8e8;
+          }
+
+          .calculate-button {
+            background: #009966;
+            color: white;
+            border: none;
+            padding: 12px 32px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 4px;
+            cursor: pointer;
+            flex: 1;
+          }
+
+          .calculate-button:hover {
+            background: #007755;
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  // STEP 3: Results with Scoring Explanation
+  if (step === 3 && results) {
+    return (
+      <div className="tool-container">
+        <header className="tool-header">
+          <h1>Gambit Capital Management</h1>
+        </header>
+        
+        <div className="step-indicator">Step 3 of 3</div>
+        
+        <div className="navigation">
+          <button onClick={() => setStep(2)} className="back-link">← Back</button>
+          <button onClick={() => { setStep(1); setResults(null); }} className="start-over-link">Start over</button>
+        </div>
+
+        <div className="step-content">
+          
+          {/* SCORE DISPLAY */}
+          <div className="score-display">
+            <div className="score-number">{results.totalScore}</div>
+            <div className="score-label">Suitability Score</div>
+            <div className="score-interpretation">
+              {results.totalScore < 25 
+                ? "An annuity is unlikely to be suitable. Your guaranteed income already covers your spending."
+                : results.totalScore < 50
+                ? "An annuity may make sense for a small portion of your assets."
+                : results.totalScore < 75
+                ? "An annuity could play a meaningful role in your retirement income plan."
+                : "An annuity may address significant gaps in your retirement income plan."}
+            </div>
+          </div>
+
+          {/* SCORING METHODOLOGY EXPLAINER */}
+          <section className="scoring-explainer">
+            <h3>How This Score Was Calculated</h3>
+            <p>Your suitability score combines four equally weighted components. Each represents a different dimension of the annuity decision:</p>
+            
+            <div className="methodology-grid">
+              <div className="methodology-item">
+                <div className="methodology-title">Longevity (Planning Horizon)</div>
+                <div className="methodology-description">
+                  How many years you may need income in retirement. Longer horizons favor fixed income security; shorter horizons favor flexibility and market participation.
+                </div>
+                <div className="methodology-score">
+                  Your planning horizon: <strong>{results.planningHorizon} years</strong> → {results.longevityScore}/25 points
+                </div>
+              </div>
+
+              <div className="methodology-item">
+                <div className="methodology-title">Income Gap</div>
+                <div className="methodology-description">
+                  The annual shortfall between your guaranteed income (Social Security + pension) and your spending goal. A larger gap suggests more benefit from annuity income.
+                </div>
+                <div className="methodology-score">
+                  Your gap: <strong>${Math.round(results.incomeGap).toLocaleString()}/year ({results.incomeGapPercentage}%)</strong> → {results.incomeGapScore}/25 points
+                </div>
+              </div>
+
+              <div className="methodology-item">
+                <div className="methodology-title">Flexibility Need</div>
+                <div className="methodology-description">
+                  Reflects your need to access capital for heirs or unexpected healthcare costs. Annuities lock capital permanently; this component penalizes competing needs.
+                </div>
+                <div className="methodology-score">
+                  Your flexibility needs: <strong>Heirs {formData.heirsImportance === 'high' ? '(high priority)' : '(lower priority)'}, Healthcare {formData.healthcareConcern === 'yes' ? '(concern)' : '(not a concern)'}</strong> → {results.flexibilityScore}/25 points
+                </div>
+              </div>
+
+              <div className="methodology-item">
+                <div className="methodology-title">Behavioral Fit</div>
+                <div className="methodology-description">
+                  How you respond to market downturns. Investors who hold steady or buy dips can tolerate locking away capital; panic-sellers should avoid irreversible commitments.
+                </div>
+                <div className="methodology-score">
+                  Your response: <strong>{formData.marketDownturnResponse || 'Not specified'}</strong> → {results.behavioralScore}/25 points
+                </div>
+              </div>
+            </div>
+
+            <p className="methodology-note">
+              <strong>Why equal weighting?</strong> No single factor should override the others. Even a high income gap is problematic if you need liquidity for healthcare or must leave assets to heirs. Conversely, excellent behavioral fit doesn't justify an annuity if your guaranteed income already covers your full spending goal.
+            </p>
+          </section>
+
+          {/* SCORE BREAKDOWN */}
+          <section className="score-breakdown">
+            <h3>Score Breakdown</h3>
+            
+            <div className="breakdown-item">
+              <div className="breakdown-label">Longevity</div>
+              <div className="breakdown-bar">
+                <div 
+                  className="breakdown-fill" 
+                  style={{ width: `${(results.longevityScore / 25) * 100}%`, background: '#00A076' }}
+                />
+              </div>
+              <div className="breakdown-score">{results.longevityScore}/25</div>
+              <div className="breakdown-note">
+                Based on your expected age of {formData.lifeExpectancy}, you have a {results.planningHorizon}-year planning horizon.
+              </div>
+            </div>
+
+            <div className="breakdown-item">
+              <div className="breakdown-label">Income Gap</div>
+              <div className="breakdown-bar">
+                <div 
+                  className="breakdown-fill" 
+                  style={{ width: `${(results.incomeGapScore / 25) * 100}%`, background: '#0099AA' }}
+                />
+              </div>
+              <div className="breakdown-score">{results.incomeGapScore}/25</div>
+              <div className="breakdown-note">
+                Your guaranteed income of ${results.totalGuaranteedIncome.toLocaleString()}/year leaves a {results.incomeGapPercentage}% gap relative to your ${parseFloat(formData.annualSpending).toLocaleString()} annual spending goal.
+              </div>
+            </div>
+
+            <div className="breakdown-item">
+              <div className="breakdown-label">Flexibility Need</div>
+              <div className="breakdown-bar">
+                <div 
+                  className="breakdown-fill" 
+                  style={{ width: `${(results.flexibilityScore / 25) * 100}%`, background: '#66CC99' }}
+                />
+              </div>
+              <div className="breakdown-score">{results.flexibilityScore}/25</div>
+              <div className="breakdown-note">
+                {formData.heirsImportance === 'high' || formData.healthcareConcern === 'yes' 
+                  ? 'Your stated priorities for heirs and/or healthcare access reduce the score.' 
+                  : 'You have fewer constraints on locking capital away.'}
+              </div>
+            </div>
+
+            <div className="breakdown-item">
+              <div className="breakdown-label">Behavioral Fit</div>
+              <div className="breakdown-bar">
+                <div 
+                  className="breakdown-fill" 
+                  style={{ width: `${(results.behavioralScore / 25) * 100}%`, background: '#00B399' }}
+                />
+              </div>
+              <div className="breakdown-score">{results.behavioralScore}/25</div>
+              <div className="breakdown-note">
+                You said: "{formData.marketDownturnResponse || 'not specified'}." 
+                {results.behavioralScore === 13 && ' Hold-and-wait investors are better positioned for annuity lock-in.'}
+                {results.behavioralScore < 13 && ' Your market response suggests concerns about locking capital irreversibly.'}
+              </div>
+            </div>
+          </section>
+
+          {/* RIGHT-SIZED RECOMMENDATION */}
+          <section className="recommendation">
+            <h3>Right-Sized Recommendation</h3>
+            
+            <div className="rec-box">
+              <div className="rec-row">
+                <div className="rec-label">Recommended annuity amount:</div>
+                <div className="rec-value">${results.recommendedAmount.toLocaleString()}</div>
+              </div>
+              
+              <div className="rec-row">
+                <div className="rec-label">As percentage of investable assets:</div>
+                <div className="rec-value">{results.recommendedPercentage}%</div>
+              </div>
+              
+              <div className="rec-row">
+                <div className="rec-label">Estimated annual income it would produce:</div>
+                <div className="rec-value">${results.estimatedAnnualIncome.toLocaleString()}/year</div>
+              </div>
+
+              <div className="rec-note">
+                This estimate uses an annuity payout rate of {results.payoutRate}% for someone purchasing at age {formData.age}. Income calculations use the full-precision interpolated rate; the percentage shown above is rounded for display only.
+              </div>
+
+              {results.incomeGap === 0 && (
+                <div className="rec-callout">
+                  Your guaranteed income already covers your full spending goal — there is no income gap for an annuity to fill.
+                </div>
+              )}
+            </div>
+
+            <div className="regulatory-ceiling">
+              <div className="ceiling-label">50% regulatory ceiling:</div>
+              <div className="ceiling-value">${results.maxAnnuityAmount.toLocaleString()}</div>
+              <div className="ceiling-note">
+                The 50% ceiling is a regulatory maximum — not a target or recommendation.
+              </div>
+            </div>
+          </section>
+
+          {/* TRADE-OFF COMPARISON */}
+          <section className="tradeoff">
+            <h3>Trade-off Comparison</h3>
+            
+            <table className="tradeoff-table">
+              <thead>
+                <tr>
+                  <th>What the annuity gives up</th>
+                  <th>What stays flexible</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Liquidity on the annuitized portion</td>
+                  <td>Remaining ${(results.investableAssets - results.recommendedAmount).toLocaleString()} in investable assets</td>
+                </tr>
+                <tr>
+                  <td>Market participation on that portion</td>
+                  <td>Still invested and accessible</td>
+                </tr>
+                <tr>
+                  <td>Assets left to heirs on that portion</td>
+                  <td>Available for heirs, healthcare, or other needs</td>
+                </tr>
+                <tr>
+                  <td>Purchasing power (inflation erodes payouts)</td>
+                  <td>Remaining assets can grow or be managed for inflation</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+
+          {/* LIMITATIONS */}
+          <section className="limitations">
+            <h3>What This Tool Doesn't Account For</h3>
+            
+            <div className="limitation-item">
+              <div className="limitation-title">The insurer.</div>
+              <div className="limitation-text">Payments depend on a single company's ability to pay for decades. This analysis does not evaluate credit quality, claims history, or default risk. Research the insurer's ratings (AM Best, Moody's, S&P) before any purchase.</div>
+            </div>
+
+            <div className="limitation-item">
+              <div className="limitation-title">Tax treatment.</div>
+              <div className="limitation-text">The tool does not incorporate tax efficiency, which varies by annuity type, funding source, and individual circumstances. Consult a tax advisor on the full implications.</div>
+            </div>
+
+            <div className="limitation-item">
+              <div className="limitation-title">Inflation.</div>
+              <div className="limitation-text">Fixed annuity payouts do not adjust for inflation. A $50k annual payout today will purchase only ~$25k of goods in 25 years. Some annuities offer inflation escalators, which reduce the starting payout.</div>
+            </div>
+
+            <div className="limitation-item">
+              <div className="limitation-title">Life expectancy.</div>
+              <div className="limitation-text">The score uses your stated life expectancy, not an actuarial projection. Underestimating longevity favors annuitization; overestimating favors flexibility.</div>
+            </div>
+
+            <div className="limitation-item">
+              <div className="limitation-title">Sequence of returns.</div>
+              <div className="limitation-text">The tool does not run multi-decade return simulations to compare the annuity path against a portfolio withdrawal strategy under varying market conditions.</div>
+            </div>
+          </section>
+
+          {/* MORTALITY TABLE TOGGLE */}
+          <section className="mortality-section">
+            <h3>Mortality Table Selection</h3>
+            <div className="mortality-info">
+              <p>Annuity payouts are calculated using actuarial mortality tables. The default uses SOA 2012 IAM Basic (without Scale G2), which reflects recent actual-to-expected experience for annuity buyers.</p>
+              <div className="mortality-toggle">
+                <label>
+                  <input 
+                    type="radio" 
+                    name="mortTable" 
+                    value="iam2012"
+                    checked={mortTableToggle === 'iam2012'}
+                    onChange={(e) => setMortTableToggle(e.target.value)}
+                  />
+                  SOA 2012 IAM Basic (default)
+                </label>
+                <label>
+                  <input 
+                    type="radio" 
+                    name="mortTable" 
+                    value="iam2012G2"
+                    checked={mortTableToggle === 'iam2012G2'}
+                    onChange={(e) => setMortTableToggle(e.target.value)}
+                  />
+                  SOA 2012 IAM Basic + Scale G2 (longer life expectancy)
+                </label>
+              </div>
+            </div>
+          </section>
+
+          {/* PDF DOWNLOAD */}
+          <section className="pdf-section">
+            <button 
+              onClick={() => {
+                const doc = generatePDF(results);
+                doc.save('annuity-suitability-analysis.pdf');
+              }} 
+              className="pdf-button"
+            >
+              ↓ Download PDF Summary
+            </button>
+          </section>
+
+          <button 
+            onClick={() => { setStep(1); setResults(null); }} 
+            className="restart-button"
+          >
+            Start Over
+          </button>
+        </div>
+
+        <style>{`
+          .tool-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f9f9f9;
+            min-height: 100vh;
+          }
+
+          .tool-header {
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 16px;
+            margin-bottom: 24px;
+          }
+
+          .tool-header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+          }
+
+          .step-indicator {
+            text-align: center;
+            color: #999;
+            font-size: 14px;
+            margin-bottom: 24px;
+          }
+
+          .navigation {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 32px;
+            font-size: 14px;
+          }
+
+          .back-link, .start-over-link {
+            background: none;
+            border: none;
+            color: #0099AA;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+          }
+
+          .back-link:hover, .start-over-link:hover {
+            text-decoration: underline;
+          }
+
+          .step-content {
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+          }
+
+          .score-display {
+            text-align: center;
+            margin-bottom: 48px;
+            padding: 40px 20px;
+            background: #f5f5f5;
+            border-radius: 8px;
+          }
+
+          .score-number {
+            font-size: 72px;
+            font-weight: 700;
+            color: #00A076;
+            margin-bottom: 8px;
+          }
+
+          .score-label {
+            font-size: 16px;
+            font-weight: 500;
+            color: #666;
+            margin-bottom: 16px;
+          }
+
+          .score-interpretation {
+            font-size: 15px;
+            color: #333;
+            line-height: 1.6;
+          }
+
+          section {
+            margin-bottom: 48px;
+          }
+
+          section h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-top: 0;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #009966;
+          }
+
+          .scoring-explainer p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 20px;
+          }
+
+          .methodology-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+          }
+
+          .methodology-item {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 6px;
+            border-left: 4px solid #0099AA;
+          }
+
+          .methodology-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 14px;
+          }
+
+          .methodology-description {
+            color: #666;
+            font-size: 13px;
+            line-height: 1.5;
+            margin-bottom: 12px;
+          }
+
+          .methodology-score {
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #555;
+          }
+
+          .methodology-note {
+            background: #fffaed;
+            padding: 16px;
+            border-radius: 6px;
+            border-left: 4px solid #ff9800;
+            font-size: 13px;
+            color: #666;
+            line-height: 1.6;
+            margin-top: 20px;
+          }
+
+          @media (max-width: 768px) {
+            .methodology-grid {
+              grid-template-columns: 1fr;
+            }
+          }
+
+          .breakdown-item {
+            margin-bottom: 24px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #f0f0f0;
+          }
+
+          .breakdown-item:last-child {
+            border-bottom: none;
+          }
+
+          .breakdown-label {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 14px;
+          }
+
+          .breakdown-bar {
+            height: 20px;
+            background: #e8e8e8;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 8px;
+          }
+
+          .breakdown-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+          }
+
+          .breakdown-score {
+            float: right;
+            font-weight: 600;
+            color: #333;
+            font-size: 13px;
+          }
+
+          .breakdown-note {
+            clear: both;
+            font-size: 13px;
+            color: #666;
+            line-height: 1.5;
+            margin-top: 8px;
+          }
+
+          .rec-box {
+            background: #f0f7f5;
+            border: 2px solid #0099AA;
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 24px;
+          }
+
+          .rec-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid rgba(0, 153, 170, 0.2);
+          }
+
+          .rec-row:last-of-type {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+          }
+
+          .rec-label {
+            font-size: 14px;
+            color: #333;
+            font-weight: 500;
+          }
+
+          .rec-value {
+            font-size: 16px;
+            font-weight: 700;
+            color: #0099AA;
+          }
+
+          .rec-note {
+            font-size: 12px;
+            color: #666;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(0, 153, 170, 0.2);
+            line-height: 1.5;
+          }
+
+          .rec-callout {
+            background: white;
+            border-left: 4px solid #0099AA;
+            padding: 12px;
+            margin-top: 12px;
+            font-size: 13px;
+            color: #555;
+            font-style: italic;
+          }
+
+          .regulatory-ceiling {
+            background: #f0f0f0;
+            padding: 16px;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+
+          .ceiling-label {
+            font-weight: 500;
+            color: #333;
+          }
+
+          .ceiling-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #666;
+          }
+
+          .ceiling-note {
+            font-size: 12px;
+            color: #999;
+            margin-top: 4px;
+            text-align: right;
+          }
+
+          .tradeoff-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+          }
+
+          .tradeoff-table th {
+            background: #f5f5f5;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #ddd;
+            font-size: 14px;
+          }
+
+          .tradeoff-table td {
+            padding: 14px 12px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 13px;
+            color: #555;
+          }
+
+          .tradeoff-table tr:hover td {
+            background: #f9f9f9;
+          }
+
+          .limitation-item {
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #f0f0f0;
+          }
+
+          .limitation-item:last-child {
+            border-bottom: none;
+          }
+
+          .limitation-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 6px;
+            font-size: 14px;
+          }
+
+          .limitation-text {
+            font-size: 13px;
+            color: #666;
+            line-height: 1.5;
+          }
+
+          .mortality-section {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 6px;
+          }
+
+          .mortality-info p {
+            color: #666;
+            font-size: 13px;
+            line-height: 1.6;
+            margin-bottom: 12px;
+          }
+
+          .mortality-toggle label {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 13px;
+            color: #555;
+            cursor: pointer;
+          }
+
+          .mortality-toggle input {
+            margin-right: 8px;
+            cursor: pointer;
+          }
+
+          .pdf-section {
+            text-align: center;
+            margin-bottom: 24px;
+          }
+
+          .pdf-button {
+            background: #009966;
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 4px;
+            cursor: pointer;
+          }
+
+          .pdf-button:hover {
+            background: #007755;
+          }
+
+          .restart-button {
+            background: #f0f0f0;
+            color: #333;
+            border: 1px solid #ddd;
+            padding: 12px 32px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 16px;
+          }
+
+          .restart-button:hover {
+            background: #e8e8e8;
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  // Initial view
+  return (
+    <div className="tool-container" style={{ 
+      maxWidth: '900px', 
+      margin: '0 auto', 
+      padding: '20px',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      background: '#f9f9f9',
+      minHeight: '100vh'
+    }}>
+      <header style={{ borderBottom: '1px solid #e0e0e0', paddingBottom: '16px', marginBottom: '40px' }}>
+        <h1 style={{ margin: '0', fontSize: '24px', fontWeight: '600', color: '#333' }}>
+          Gambit Capital Management
+        </h1>
+      </header>
+
+      <div style={{ background: 'white', padding: '60px 40px', borderRadius: '8px', textAlign: 'center' }}>
+        <h2 style={{ fontSize: '28px', fontWeight: '600', marginBottom: '16px' }}>Do I Need an Annuity?</h2>
+        <p style={{ fontSize: '16px', color: '#666', marginBottom: '32px', lineHeight: '1.6' }}>
+          This tool calculates your personalized suitability score for annuities in retirement income planning. 
+          It surfaces the real tradeoffs — permanence, illiquidity, inflation, heir exclusion — without hedging.
+        </p>
+        <button 
+          onClick={() => setStep(1)}
+          style={{
+            background: '#009966',
+            color: 'white',
+            border: 'none',
+            padding: '14px 40px',
+            fontSize: '16px',
+            fontWeight: '600',
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}
+        >
+          Start Assessment
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default BulwarkAnnuitySuitability;

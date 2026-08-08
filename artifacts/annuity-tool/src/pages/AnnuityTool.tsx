@@ -517,6 +517,33 @@ export default function AnnuityTool() {
         y += 4;
       }
 
+      // Alternatives
+      if (y > 230) { doc.addPage(); y = 20; }
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Other ways to close this gap', leftMargin, y);
+      y += 8;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      const alternatives = [
+        { title: 'Delaying Social Security', text: "If you haven't claimed yet, every year you wait past full retirement age raises your benefit roughly 8% for life, and that higher amount keeps adjusting for inflation. It's usually the cheapest guaranteed income available." },
+        { title: 'A bond or TIPS ladder', text: 'Individual bonds timed to mature in the years you need the money. Predictable, and TIPS keep pace with inflation. The limitation is that a ladder covers a set number of years, not your whole life.' },
+        { title: 'Staying invested and withdrawing on a schedule', text: "Your money stays yours, stays reachable, and keeps growing. The income isn't guaranteed, and you carry the risk of a bad market stretch early on." },
+        { title: 'A smaller annuity', text: "Cover only the spending you can't afford to miss, like housing, food, and insurance. Everything above that stays flexible." },
+        { title: 'Waiting and buying later', text: 'Payout rates rise with age. The same income costs less at 75 than at 65, and the money stays available to you in the meantime.' },
+      ];
+      for (const alt of alternatives) {
+        if (y > 255) { doc.addPage(); y = 20; }
+        doc.setFont('helvetica', 'bold');
+        doc.text(alt.title, leftMargin, y);
+        y += 5;
+        doc.setFont('helvetica', 'normal');
+        const altLines = doc.splitTextToSize(alt.text, 170);
+        doc.text(altLines, leftMargin, y);
+        y += altLines.length * 5 + 4;
+      }
+      y += 4;
+
       // Footer — add new page if too close to the bottom
       if (y > 260) {
         doc.addPage();
@@ -1068,47 +1095,31 @@ export default function AnnuityTool() {
               </div>
             </div>
 
-            {/* Trade-off Comparison */}
+            {/* Alternatives */}
             <div>
-              <h2 className="mb-4 text-xl font-semibold text-foreground">Trade-off Comparison</h2>
-              <div className="overflow-hidden rounded-lg border border-border">
-                <table className="w-full">
-                  <thead className="bg-muted">
-                    <tr>
-                      <th className="border-r border-border p-4 text-left font-medium text-foreground">
-                        What the annuity gives up
-                      </th>
-                      <th className="p-4 text-left font-medium text-foreground">
-                        What stays flexible
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-card">
-                    <tr className="border-t border-border">
-                      <td className="border-r border-border p-4 text-sm text-foreground">
-                        Liquidity on the annuitized portion
-                      </td>
-                      <td className="p-4 text-sm text-foreground">
-                        Remaining {formatCurrency(results.remainingAssets)} in investable assets
-                      </td>
-                    </tr>
-                    <tr className="border-t border-border">
-                      <td className="border-r border-border p-4 text-sm text-foreground">
-                        Market participation on that portion
-                      </td>
-                      <td className="p-4 text-sm text-foreground">Still invested and accessible</td>
-                    </tr>
-                    <tr className="border-t border-border">
-                      <td className="border-r border-border p-4 text-sm text-foreground">
-                        Assets left to heirs on that portion
-                      </td>
-                      <td className="p-4 text-sm text-foreground">
-                        Available for heirs, healthcare, or other needs
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+              <h2 className="mb-2 text-xl font-semibold text-foreground">Other ways to close this gap</h2>
+              <p className="mb-5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+                {results.gap > 0
+                  ? `An annuity is one way to cover the ${formatCurrency(results.gap)} a year your guaranteed income doesn't reach. It isn't the only way, and it's worth knowing what you're choosing between.`
+                  : 'An annuity is one option among several. It\'s worth knowing what you\'re choosing between.'}
+              </p>
+              <div className="divide-y divide-border border-y border-border">
+                {([
+                  { title: 'Delaying Social Security', text: "If you haven't claimed yet, every year you wait past full retirement age raises your benefit roughly 8% for life, and that higher amount keeps adjusting for inflation. It's usually the cheapest guaranteed income available." },
+                  { title: 'A bond or TIPS ladder', text: 'Individual bonds timed to mature in the years you need the money. Predictable, and TIPS keep pace with inflation. The limitation is that a ladder covers a set number of years, not your whole life.' },
+                  { title: 'Staying invested and withdrawing on a schedule', text: "Your money stays yours, stays reachable, and keeps growing. The income isn't guaranteed, and you carry the risk of a bad market stretch early on." },
+                  { title: 'A smaller annuity', text: "Cover only the spending you can't afford to miss, like housing, food, and insurance. Everything above that stays flexible." },
+                  { title: 'Waiting and buying later', text: 'Payout rates rise with age. The same income costs less at 75 than at 65, and the money stays available to you in the meantime.' },
+                ] as { title: string; text: string }[]).map((alt) => (
+                  <div key={alt.title} className="py-4">
+                    <h3 className="text-sm font-semibold text-foreground">{alt.title}</h3>
+                    <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">{alt.text}</p>
+                  </div>
+                ))}
               </div>
+              <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+                These aren't mutually exclusive. Most people who should own an annuity should own one alongside these, not instead of them.
+              </p>
             </div>
 
             {/* Considerations */}

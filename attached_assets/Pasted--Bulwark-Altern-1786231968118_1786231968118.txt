@@ -1,0 +1,68 @@
+/* =============================================================================
+   Bulwark — Alternatives section (light version)
+   Replaces the "Trade-off Comparison" table.
+   Keep the "What this means for you" consideration blocks below it.
+   Requires no new inputs. annualGap is optional.
+   ========================================================================== */
+
+const ALTERNATIVES = [
+  {
+    title: "Delaying Social Security",
+    text: "If you haven't claimed yet, every year you wait past full retirement age raises your benefit roughly 8% for life, and that higher amount keeps adjusting for inflation. It's usually the cheapest guaranteed income available.",
+  },
+  {
+    title: "A bond or TIPS ladder",
+    text: "Individual bonds timed to mature in the years you need the money. Predictable, and TIPS keep pace with inflation. The limitation is that a ladder covers a set number of years, not your whole life.",
+  },
+  {
+    title: "Staying invested and withdrawing on a schedule",
+    text: "Your money stays yours, stays reachable, and keeps growing. The income isn't guaranteed, and you carry the risk of a bad market stretch early on.",
+  },
+  {
+    title: "A smaller annuity",
+    text: "Cover only the spending you can't afford to miss, like housing, food, and insurance. Everything above that stays flexible.",
+  },
+  {
+    title: "Waiting and buying later",
+    text: "Payout rates rise with age. The same income costs less at 75 than at 65, and the money stays available to you in the meantime.",
+  },
+];
+
+export function AlternativesSection({ annualGap }) {
+  return (
+    <section className="mt-10">
+      <h2 className="text-xl font-semibold text-gray-900">
+        Other ways to close this gap
+      </h2>
+      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-gray-600">
+        {annualGap > 0
+          ? `An annuity is one way to cover the $${Math.round(
+              annualGap
+            ).toLocaleString()} a year your guaranteed income doesn't reach. It isn't the only way, and it's worth knowing what you're choosing between.`
+          : "An annuity is one option among several. It's worth knowing what you're choosing between."}
+      </p>
+
+      <div className="mt-5 divide-y divide-gray-200 border-y border-gray-200">
+        {ALTERNATIVES.map((alt) => (
+          <div key={alt.title} className="py-4">
+            <h3 className="text-sm font-semibold text-gray-900">{alt.title}</h3>
+            <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-gray-600">
+              {alt.text}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      <p className="mt-4 max-w-2xl text-sm leading-relaxed text-gray-600">
+        These aren't mutually exclusive. Most people who should own an annuity
+        should own one alongside these, not instead of them.
+      </p>
+    </section>
+  );
+}
+
+/* PDF text for jsPDF — no JSX */
+export const ALTERNATIVES_FOR_PDF = ALTERNATIVES.map((a) => ({
+  title: a.title,
+  text: a.text,
+}));

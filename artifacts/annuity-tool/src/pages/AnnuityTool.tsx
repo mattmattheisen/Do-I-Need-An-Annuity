@@ -572,9 +572,8 @@ export default function AnnuityTool() {
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <h2 className="text-3xl font-bold text-foreground">Do I Need An Annuity?</h2>
             <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-muted-foreground">
-              This tool calculates your personalized suitability score for annuities in retirement
-              income planning. It surfaces the real trade-offs — permanence, illiquidity, inflation,
-              heir exclusion — without hedging.
+              This tool helps you figure out whether an annuity actually belongs in your retirement
+              plan or whether something else does the job better.
             </p>
             <p className="mt-2 text-sm text-muted-foreground">3 steps · takes about 2 minutes</p>
             <Button

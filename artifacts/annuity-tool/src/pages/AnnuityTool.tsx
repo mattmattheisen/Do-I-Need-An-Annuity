@@ -34,6 +34,7 @@ const SCENARIO_OPTIONS = [
 
 export default function AnnuityTool() {
   const [step, setStep] = useState(0);
+  const [openMethodologyId, setOpenMethodologyId] = useState<string | null>('why');
 
   // Scroll to top whenever the step changes
   useEffect(() => {
@@ -428,7 +429,7 @@ export default function AnnuityTool() {
       );
       y += 6;
       doc.text(
-        `50% regulatory ceiling: ${formatCurrency(results.ceilingAmount)}`,
+        `50% ceiling (the most we'd ever point you toward): ${formatCurrency(results.ceilingAmount)}`,
         leftMargin,
         y
       );
@@ -574,8 +575,8 @@ export default function AnnuityTool() {
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <h2 className="text-3xl font-bold text-foreground">Do I Need An Annuity?</h2>
             <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-muted-foreground">
-              This tool helps you figure out whether an annuity actually belongs in your retirement
-              plan or whether something else does the job better.
+              Not sure if an annuity is right for you? This tool gives you a real answer, including
+              the downsides annuity salespeople don't volunteer.
             </p>
             <p className="mt-2 text-sm text-muted-foreground">3 steps · takes about 2 minutes</p>
             <Button
@@ -930,73 +931,75 @@ export default function AnnuityTool() {
             {/* Scoring Methodology Explainer */}
             <div>
               <h2 className="mb-4 text-xl font-semibold text-foreground">
-                How This Score Was Calculated
+                How your score was calculated
               </h2>
               <p className="mb-5 text-sm text-muted-foreground">
-                Your suitability score combines four equally weighted components. Each represents a
-                different dimension of the annuity decision.
+                Your score comes from four things, each worth 25 points. Any one of them can rule
+                an annuity out on its own, so none of them outweighs the others.
               </p>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="rounded-lg border-l-4 border-primary bg-card p-4">
-                  <p className="text-sm font-semibold text-foreground">Longevity</p>
-                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                    Longer planning horizons favor fixed income security; shorter ones favor
-                    flexibility and market participation.
-                  </p>
-                  <p className="mt-3 rounded bg-muted px-3 py-2 text-xs text-foreground">
-                    Planning horizon:{' '}
-                    <strong>
-                      {Number(formData.expectedAge) - Number(formData.currentAge)} years
-                    </strong>{' '}
-                    → {Math.round(results.longevityScore)}/25
-                  </p>
-                </div>
-                <div className="rounded-lg border-l-4 border-primary bg-card p-4">
-                  <p className="text-sm font-semibold text-foreground">Income Gap</p>
-                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                    The annual shortfall between guaranteed retirement income and your spending
-                    goal. A larger gap suggests more benefit from annuity income.
-                  </p>
-                  <p className="mt-3 rounded bg-muted px-3 py-2 text-xs text-foreground">
-                    Gap:{' '}
-                    <strong>
-                      {formatCurrency(results.gap)}/year ({(results.gapPct * 100).toFixed(0)}%)
-                    </strong>{' '}
-                    → {Math.round(results.incomeGapScore)}/25
-                  </p>
-                </div>
-                <div className="rounded-lg border-l-4 border-primary bg-card p-4">
-                  <p className="text-sm font-semibold text-foreground">Flexibility Need</p>
-                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                    Reflects your need to access capital for heirs or unexpected healthcare costs.
-                    Annuities lock capital permanently; competing needs reduce the score.
-                  </p>
-                  <p className="mt-3 rounded bg-muted px-3 py-2 text-xs text-foreground">
-                    Heirs: <strong>{formData.heirsImportant ? 'yes' : 'no'}</strong>, Healthcare:{' '}
-                    <strong>{formData.healthcareConcern ? 'yes' : 'no'}</strong> →{' '}
-                    {Math.round(results.flexibilityNeed)}/25
-                  </p>
-                </div>
-                <div className="rounded-lg border-l-4 border-primary bg-card p-4">
-                  <p className="text-sm font-semibold text-foreground">Behavioral Fit</p>
-                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                    How you respond to market downturns. Investors who hold steady can tolerate
-                    locking away capital; those who sell cannot.
-                  </p>
-                  <p className="mt-3 rounded bg-muted px-3 py-2 text-xs text-foreground">
-                    Response:{' '}
-                    <strong>"{SCENARIO_OPTIONS[formData.marketComfort]?.label}"</strong> →{' '}
-                    {Math.round(results.behavioralFitScore)}/25
-                  </p>
-                </div>
+                {([
+                  {
+                    name: 'Longevity',
+                    subtitle: 'How long the money has to last',
+                    description: 'The longer your retirement, the more valuable a check that never stops. A shorter horizon favors keeping money flexible and invested.',
+                    score: Math.round(results.longevityScore),
+                    detail: (() => {
+                      const h = Number(formData.expectedAge) - Number(formData.currentAge);
+                      const a = Number(formData.expectedAge);
+                      if (h >= 35) return `Planning to age ${a} means this money may need to last ${h} more years. That's a long time for savings to hold up on their own.`;
+                      if (h >= 25) return `Planning to age ${a} gives you a ${h}-year horizon. Long enough that outliving your savings is a real risk worth addressing.`;
+                      return `Planning to age ${a} gives you a ${h}-year horizon. Shorter horizons favor keeping money flexible rather than locking it up.`;
+                    })(),
+                  },
+                  {
+                    name: 'Income Gap',
+                    subtitle: "How much of your spending isn't covered yet",
+                    description: 'Social Security and pensions cover part of what you spend. The rest comes out of savings. The bigger that gap, the more an annuity can do for you.',
+                    score: Math.round(results.incomeGapScore),
+                    detail: (() => {
+                      const pct = Math.round(results.gapPct * 100);
+                      if (results.gap === 0) return "Social Security and pension income already cover your spending goal. There's no gap for an annuity to fill.";
+                      return `Social Security and pension income cover ${100 - pct}% of what you plan to spend. The other ${pct}%, about ${formatCurrency(results.gap)} a year, has to come out of savings.`;
+                    })(),
+                  },
+                  {
+                    name: 'Flexibility Need',
+                    subtitle: 'How much has to stay within reach',
+                    description: "Once you hand money to an insurance company, it's gone for good. If you want to leave something to family or expect significant healthcare costs, more of your savings needs to stay reachable.",
+                    score: Math.round(results.flexibilityNeed),
+                    detail: (() => {
+                      if (formData.heirsImportant && formData.healthcareConcern) return "You told us leaving money to family and covering healthcare costs both matter, so most of your savings needs to stay accessible.";
+                      if (formData.heirsImportant) return "You want to leave money to family. An annuity pays you, not your heirs, so that limits how much belongs in one.";
+                      if (formData.healthcareConcern) return "You expect meaningful healthcare costs. Money in an annuity can't be pulled out for a large medical bill, so more needs to stay liquid.";
+                      return "You don't have competing claims on this money, so more of it can go toward guaranteed income.";
+                    })(),
+                  },
+                  {
+                    name: 'Behavioral Fit',
+                    subtitle: 'What you actually do when markets drop',
+                    description: "Selling in a downturn does more damage than the downturn. If that's a real risk for you, guaranteed income takes the decision off the table.",
+                    score: Math.round(results.behavioralFitScore),
+                    detail: `You said: "${SCENARIO_OPTIONS[formData.marketComfort]?.label}."${formData.marketComfort <= 1 ? ' Investors who would reduce exposure in a downturn often benefit from guaranteed income that removes the decision entirely.' : formData.marketComfort >= 3 ? ' Investors comfortable staying invested or buying in a downturn typically have less need for guaranteed income to manage volatility.' : ' A hold-and-wait response suggests moderate tolerance — guaranteed income may reduce pressure to act during downturns.'}`,
+                  },
+                ] as { name: string; subtitle: string; description: string; score: number; detail: string }[]).map((c) => (
+                  <div key={c.name} className="rounded-lg border-l-4 border-primary bg-card p-4">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <p className="text-sm font-semibold text-foreground">{c.name}</p>
+                      <span className="text-sm font-semibold tabular-nums text-primary">{c.score}/25</span>
+                    </div>
+                    <p className="mt-0.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">{c.subtitle}</p>
+                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{c.description}</p>
+                    <p className="mt-3 rounded border border-border bg-muted/50 px-3 py-2 text-sm text-foreground">{c.detail}</p>
+                  </div>
+                ))}
               </div>
               <div className="mt-4 rounded-lg border-l-4 border-amber-400 bg-amber-50 p-4">
-                <p className="text-xs leading-relaxed text-muted-foreground">
-                  <strong className="text-foreground">Why equal weighting?</strong> No single
-                  factor should override the others. Even a high income gap is problematic if you
-                  need liquidity for healthcare or must leave assets to heirs. Conversely, excellent
-                  behavioral fit doesn't justify an annuity if your guaranteed income already covers
-                  your full spending goal.
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  <strong className="text-foreground">Why all four count equally. </strong>
+                  A large income gap doesn't matter much if you need the money available for medical
+                  bills. Staying calm in a selloff doesn't matter if Social Security already covers
+                  your spending. Each one can independently make an annuity a bad fit.
                 </p>
               </div>
             </div>
@@ -1013,13 +1016,13 @@ export default function AnnuityTool() {
                     </span>
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Based on your expected age of {formData.expectedAge}, you have a{' '}
-                    {Number(formData.expectedAge) >= 95
-                      ? 'long'
-                      : Number(formData.expectedAge) >= 85
-                        ? 'moderate'
-                        : 'shorter'}{' '}
-                    planning horizon.
+                    {(() => {
+                      const h = Number(formData.expectedAge) - Number(formData.currentAge);
+                      const a = Number(formData.expectedAge);
+                      if (h >= 35) return `Planning to age ${a} means this money may need to last ${h} more years. That's a long time for savings to hold up on their own.`;
+                      if (h >= 25) return `Planning to age ${a} gives you a ${h}-year horizon. Long enough that outliving your savings is a real risk worth addressing.`;
+                      return `Planning to age ${a} gives you a ${h}-year horizon. Shorter horizons favor keeping money flexible rather than locking it up.`;
+                    })()}
                   </p>
                 </div>
 
@@ -1031,9 +1034,9 @@ export default function AnnuityTool() {
                     </span>
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Your guaranteed income ({formatCurrency(results.totalGuaranteedIncome)}/year)
-                    covers {((1 - results.gapPct) * 100).toFixed(0)}% of your spending goal,
-                    leaving a {(results.gapPct * 100).toFixed(0)}% gap to fill.
+                    {results.gap === 0
+                      ? "Social Security and pension income already cover your spending goal. There's no gap for an annuity to fill."
+                      : `Social Security and pension income cover ${(100 - Math.round(results.gapPct * 100))}% of what you plan to spend. The other ${Math.round(results.gapPct * 100)}%, about ${formatCurrency(results.gap)} a year, has to come out of savings.`}
                   </p>
                 </div>
 
@@ -1046,12 +1049,12 @@ export default function AnnuityTool() {
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">
                     {formData.heirsImportant && formData.healthcareConcern
-                      ? '–10 for heirs priority, –10 for healthcare concern'
+                      ? "You told us leaving money to family and covering healthcare costs both matter, so most of your savings needs to stay accessible."
                       : formData.heirsImportant
-                        ? '–10 for heirs priority'
+                        ? "You want to leave money to family. An annuity pays you, not your heirs, so that limits how much belongs in one."
                         : formData.healthcareConcern
-                          ? '–10 for healthcare concern'
-                          : 'No flexibility deductions applied'}
+                          ? "You expect meaningful healthcare costs. Money in an annuity can't be pulled out for a large medical bill, so more needs to stay liquid."
+                          : "You don't have competing claims on this money, so more of it can go toward guaranteed income."}
                   </p>
                 </div>
 
@@ -1124,14 +1127,17 @@ export default function AnnuityTool() {
               </div>
 
               <div className="mt-4 rounded-lg border border-border bg-card p-4">
-                <div className="flex justify-between">
-                  <span className="text-foreground">50% regulatory ceiling:</span>
-                  <span className="font-semibold text-foreground" data-testid="text-ceiling-amount">
+                <div className="flex items-baseline justify-between gap-4">
+                  <span className="text-sm font-medium text-foreground">The most we'd ever point you toward</span>
+                  <span className="text-lg font-semibold tabular-nums text-foreground" data-testid="text-ceiling-amount">
                     {formatCurrency(results.ceilingAmount)}
                   </span>
                 </div>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  The 50% ceiling is a regulatory maximum — not a target or recommendation.
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  Half your investable savings should stay liquid and invested no matter how strong
+                  the case for an annuity looks. That money covers emergencies, one-time expenses,
+                  inflation you didn't plan for, and anything you want to leave behind. This is a
+                  ceiling, not a goal. The number above it is what actually fits your situation.
                 </p>
               </div>
             </div>
@@ -1359,6 +1365,108 @@ export default function AnnuityTool() {
 
                 </div>
               </div>
+            </div>
+
+            {/* Methodology Section */}
+            <div className="border-t border-border pt-8">
+              <h2 className="text-xl font-semibold text-foreground">How this tool works</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+                Every assumption behind your result, written out. Nothing here is proprietary and
+                nothing is hidden.
+              </p>
+              <div className="mt-5 divide-y divide-border border-y border-border">
+                {([
+                  {
+                    id: 'why',
+                    title: 'Why this tool exists',
+                    body: [
+                      "Most annuity material is written by people who get paid when you buy one. It leads with the guaranteed income and buries everything else: that the purchase is permanent, that a fixed payment buys less every year, that the money is gone if you need it back, that your heirs get nothing from it.",
+                      "Those facts don't make annuities bad. For some people an annuity is the single best thing they can do with part of their savings. But you can't make that call without seeing the whole picture, and almost nothing in the market shows you the whole picture.",
+                      "This tool was built to fill that gap. It asks what your situation actually is, tells you plainly whether an annuity fits, and puts a number on how much is reasonable. Sometimes the answer is none.",
+                    ],
+                  },
+                  {
+                    id: 'how',
+                    title: 'How the score works',
+                    body: [
+                      "Four factors, 25 points each, 100 points total: how long the money has to last, how much of your spending isn't already covered, how much has to stay within reach, and how you behave when markets fall.",
+                      "Equal weighting is deliberate. Weighting the income gap more heavily would push people toward annuities who badly need their money liquid. Any one of the four can independently make an annuity the wrong choice, so any one of them can pull the score down on its own.",
+                      "The score is a starting point for a conversation, not a verdict. A 72 and a 68 are not meaningfully different.",
+                    ],
+                  },
+                  {
+                    id: 'numbers',
+                    title: 'Where the numbers come from',
+                    body: [
+                      "Payout rates are drawn from current single-premium immediate annuity quotes for the age and payout structure you enter. Rates move, and the quote you're actually offered depends on the carrier, your state, and the day you buy.",
+                      "Inflation erosion is shown at a fixed assumed rate so you can see what a level payment is worth in twenty years. If you buy an inflation-adjusted contract instead, the starting payment is substantially lower.",
+                    ],
+                  },
+                  {
+                    id: 'ceiling',
+                    title: 'The 50% ceiling',
+                    body: [
+                      "No matter how high the score, this tool will never suggest putting more than half your investable savings into an annuity.",
+                      "That limit isn't a law. It's a line drawn from common carrier and broker-dealer suitability guidelines, and from the plain fact that annuity money is unrecoverable. The other half has to be there for emergencies, large one-time costs, inflation, and anything you intend to pass on.",
+                      "Treat the ceiling as a wall, not a target. Most people who should own an annuity should own considerably less than the maximum.",
+                    ],
+                  },
+                  {
+                    id: 'limits',
+                    title: 'What this tool does not do',
+                    body: [
+                      "It doesn't shop carriers, compare specific contracts, or price riders. It doesn't account for your tax situation, your state's guaranty association limits, or how an annuity interacts with Medicaid planning, RMDs, or a spouse's benefits.",
+                      "It doesn't know anything you didn't type in, and it can't tell whether what you typed is realistic.",
+                      "It is not a recommendation to buy anything. It's a way to find out whether the conversation is worth having.",
+                    ],
+                  },
+                  {
+                    id: 'privacy',
+                    title: 'Your information',
+                    body: [
+                      "Everything you enter stays in your browser. Nothing is sent to a server, stored, or tracked. The tool loads no outside fonts, scripts, or trackers, so there is no third party receiving your data either.",
+                      "Closing the tab erases everything. If you want a copy, download the PDF before you leave.",
+                    ],
+                  },
+                ] as { id: string; title: string; body: string[] }[]).map((s) => {
+                  const open = openMethodologyId === s.id;
+                  return (
+                    <div key={s.id}>
+                      <button
+                        type="button"
+                        onClick={() => setOpenMethodologyId(open ? null : s.id)}
+                        aria-expanded={open}
+                        className="flex w-full items-center justify-between gap-4 py-4 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                      >
+                        <span className="text-sm font-semibold text-foreground">{s.title}</span>
+                        <svg
+                          viewBox="0 0 20 20"
+                          aria-hidden="true"
+                          className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.75"
+                        >
+                          <path d="M5 8l5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+                      {open && (
+                        <div className="pb-5">
+                          {s.body.map((p, i) => (
+                            <p key={i} className="mb-3 max-w-2xl text-sm leading-relaxed text-muted-foreground last:mb-0">
+                              {p}
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="mt-5 text-xs text-muted-foreground">
+                Version 1.0. Assumptions and payout rates last reviewed August 2026. Gambit Capital
+                Management. This tool does not provide investment, tax, or legal advice.
+              </p>
             </div>
 
             {/* Download Button */}

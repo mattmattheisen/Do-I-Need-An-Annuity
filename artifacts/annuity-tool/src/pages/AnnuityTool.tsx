@@ -1370,11 +1370,7 @@ export default function AnnuityTool() {
 
         {/* Footer */}
         <footer className="mt-12 border-t border-border pt-8">
-          <p className="text-center text-sm text-muted-foreground">
-            Everything you enter stays on your device. Nothing is sent to us, saved, or tracked.
-            Close this page and it's gone.
-          </p>
-          <p className="mt-4 text-center text-xs text-muted-foreground">
+          <p className="text-center text-xs text-muted-foreground">
             This is an educational tool only, not investment advice. Individual circumstances vary.
             Consult a licensed financial professional.
           </p>

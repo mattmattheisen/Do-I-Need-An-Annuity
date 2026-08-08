@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,7 +36,7 @@ export default function AnnuityTool() {
   const [step, setStep] = useState(0);
 
   // Scroll to top whenever the step changes
-  React.useEffect(() => {
+  useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, [step]);
   const [formData, setFormData] = useState<FormData>({

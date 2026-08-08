@@ -553,7 +553,7 @@ export default function AnnuityTool() {
       <header className="border-b border-border bg-card">
         <div className="mx-auto max-w-4xl px-4 py-4 sm:px-6 lg:px-8">
           <img
-            src="/gambit-logo.svg"
+            src="/gambit-logo.png"
             alt="Gambit Capital Management, LLC"
             className="h-12 w-auto"
           />

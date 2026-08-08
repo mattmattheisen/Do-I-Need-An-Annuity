@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 56" fill="none" role="img" aria-label="Gambit Capital Management, LLC">
+  <!-- Icon mark -->
+  <g>
+    <!-- Dark shield/pentagon background -->
+    <path d="M4 2 L50 2 L50 38 L27 54 L4 38 Z" fill="#1C2D4A"/>
+    <!-- G shape (white angular) -->
+    <path d="M11 11 L11 38 L27 38 L27 30 L20 30 L20 34 L15 34 L15 16 L27 16 L27 21 L32 21 L32 11 Z" fill="white"/>
+    <!-- C shape (white angular) -->
+    <path d="M34 11 L48 11 L48 19 L38 19 L38 32 L48 32 L48 38 L34 38 L34 11 Z" fill="white"/>
+  </g>
+  <!-- Company name text -->
+  <text x="62" y="22" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#1C2D4A" letter-spacing="0.5">GAMBIT CAPITAL</text>
+  <text x="62" y="38" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="400" fill="#1C2D4A" letter-spacing="1.5">MANAGEMENT, LLC</text>
+</svg>

@@ -551,10 +551,12 @@ export default function AnnuityTool() {
     <div className="min-h-[100dvh] bg-background">
       {/* Header */}
       <header className="border-b border-border bg-card">
-        <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:px-8">
-          <h1 className="text-xl font-semibold tracking-tight text-foreground">
-            Gambit Capital Management
-          </h1>
+        <div className="mx-auto max-w-4xl px-4 py-4 sm:px-6 lg:px-8">
+          <img
+            src="/gambit-logo.svg"
+            alt="Gambit Capital Management, LLC"
+            className="h-12 w-auto"
+          />
         </div>
       </header>
 
@@ -1370,9 +1372,32 @@ export default function AnnuityTool() {
 
         {/* Footer */}
         <footer className="mt-12 border-t border-border pt-8">
-          <p className="text-center text-xs text-muted-foreground">
-            This is an educational tool only, not investment advice. Individual circumstances vary.
-            Consult a licensed financial professional.
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            Gambit Capital Management, LLC is an Investment Adviser registered with the SEC. All
+            views, expressions, and opinions included in this communication are subject to change.
+            This communication is not intended as an offer or solicitation to buy, hold or sell any
+            financial instrument or investment advisory services. Any information provided has been
+            obtained from sources considered reliable, but we do not guarantee the accuracy or the
+            completeness of any description of securities, markets or developments mentioned. We
+            may, from time to time, have a position in the securities mentioned and may execute
+            transactions that may not be consistent with this communication's conclusions. Please
+            contact us at (651) 427-9001 if there is any change in your financial situation, needs,
+            goals or objectives, or if you wish to initiate any restrictions on the management of
+            the account or modify existing restrictions. Additionally, we recommend you compare any
+            account reports from GCM with the account statements from your Custodian. Please notify
+            us if you do not receive statements from your Custodian on at least a quarterly basis.
+            Our current disclosure brochure, Form ADV Part 2, is available for your review upon
+            request, and on our website,{' '}
+            <a
+              href="https://www.gambitcm.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-foreground"
+            >
+              www.gambitcm.com
+            </a>
+            . This disclosure brochure, or a summary of material changes made, is also provided to
+            our clients on an annual basis.
           </p>
         </footer>
       </main>

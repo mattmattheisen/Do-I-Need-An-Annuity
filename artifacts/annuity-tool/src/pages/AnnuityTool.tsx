@@ -288,6 +288,13 @@ export default function AnnuityTool() {
     return 'An annuity aligns well with your priorities and goals.';
   };
 
+  const getScoreColor = (score: number): string => {
+    if (score > 75) return '#059669'; // band 4 — emerald, affirmative
+    if (score > 50) return '#D97706'; // band 3 — amber, worth considering
+    if (score > 25) return '#64748B'; // band 2 — slate, non-affirmative
+    return '#475569';                 // band 1 — darker slate, clearly no
+  };
+
   const downloadPDF = () => {
       const doc = new jsPDF();
 
@@ -902,17 +909,30 @@ export default function AnnuityTool() {
 
             {/* Suitability Score */}
             <div className="text-center">
-              <div className="mb-2 text-6xl font-bold text-primary" data-testid="text-suitability-score">
-                {results.suitabilityScore}
+              <div className="mb-2 flex items-baseline justify-center gap-1" data-testid="text-suitability-score">
+                <span
+                  className="text-6xl font-bold"
+                  style={{ color: getScoreColor(results.suitabilityScore) }}
+                >
+                  {results.suitabilityScore}
+                </span>
+                <span className="text-3xl font-normal text-muted-foreground">/ 100</span>
               </div>
               <div className="text-lg font-medium text-muted-foreground">Suitability Score</div>
               <p className="mx-auto mt-4 max-w-2xl text-base text-foreground" data-testid="text-suitability-band">
                 {getSuitabilityBand(results.suitabilityScore)}
               </p>
+              <button
+                type="button"
+                onClick={() => document.getElementById('score-breakdown')?.scrollIntoView({ behavior: 'smooth' })}
+                className="mt-3 text-sm text-muted-foreground hover:text-foreground"
+              >
+                ↓ See what drove this score
+              </button>
             </div>
 
             {/* Scoring Methodology Explainer */}
-            <div>
+            <div id="score-breakdown">
               <h2 className="mb-4 text-xl font-semibold text-foreground">
                 How your score was calculated
               </h2>

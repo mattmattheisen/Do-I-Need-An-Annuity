@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Score Band Preview</title>
+<style>
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: #f8f9fa; padding: 40px 20px; margin: 0; }
+  .container { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 48px; }
+  h3 { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #9ca3af; margin: 0 0 16px; }
+  .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 40px; text-align: center; }
+  .score-row { display: flex; align-items: baseline; justify-content: center; gap: 4px; margin-bottom: 8px; }
+  .score-num { font-size: 64px; font-weight: 700; line-height: 1; }
+  .score-denom { font-size: 32px; font-weight: 400; color: #6b7280; }
+  .score-label { font-size: 18px; font-weight: 500; color: #6b7280; margin-bottom: 16px; }
+  .band-text { font-size: 16px; color: #111827; max-width: 480px; margin: 0 auto 12px; line-height: 1.6; }
+  .scroll-prompt { font-size: 14px; color: #9ca3af; cursor: pointer; }
+  .scroll-prompt:hover { color: #374151; }
+  .divider { font-size: 11px; color: #d1d5db; text-align: center; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div>
+    <h3>Band 4 — score 86 / emerald #059669</h3>
+    <div class="card">
+      <div class="score-row">
+        <span class="score-num" style="color: #059669;">86</span>
+        <span class="score-denom">/ 100</span>
+      </div>
+      <div class="score-label">Suitability Score</div>
+      <p class="band-text">An annuity aligns well with your priorities and goals.</p>
+      <span class="scroll-prompt">↓ See what drove this score</span>
+    </div>
+  </div>
+
+  <div>
+    <h3>Band 3 — score 55 / amber #D97706</h3>
+    <div class="card">
+      <div class="score-row">
+        <span class="score-num" style="color: #D97706;">55</span>
+        <span class="score-denom">/ 100</span>
+      </div>
+      <div class="score-label">Suitability Score</div>
+      <p class="band-text">An annuity is worth serious consideration as part of your income plan.</p>
+      <span class="scroll-prompt">↓ See what drove this score</span>
+    </div>
+  </div>
+
+  <div>
+    <h3>Band 2 — score 38 / slate #64748B</h3>
+    <div class="card">
+      <div class="score-row">
+        <span class="score-num" style="color: #64748B;">38</span>
+        <span class="score-denom">/ 100</span>
+      </div>
+      <div class="score-label">Suitability Score</div>
+      <p class="band-text">An annuity may make sense for a small portion of your assets.</p>
+      <span class="scroll-prompt">↓ See what drove this score</span>
+    </div>
+  </div>
+
+  <div>
+    <h3>Band 1 — score 18 / slate #475569</h3>
+    <div class="card">
+      <div class="score-row">
+        <span class="score-num" style="color: #475569;">18</span>
+        <span class="score-denom">/ 100</span>
+      </div>
+      <div class="score-label">Suitability Score</div>
+      <p class="band-text">An annuity is unlikely to be the right tool for your situation.</p>
+      <span class="scroll-prompt">↓ See what drove this score</span>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

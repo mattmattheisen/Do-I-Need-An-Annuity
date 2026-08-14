@@ -160,7 +160,15 @@ export default function AnnuityTool() {
     const healthcareConcern = formData.healthcareConcern;
 
     // Component 1: Longevity (0-25)
-    const longevityScore = Math.min(25, Math.max(0, ((expectedAge - 80) / 20) * 25));
+    // Anchors: zero at age 75, maximum at age 95 (capped).
+    // Previous anchors (zero at 80, max at 100) placed age 90 at the exact
+    // midpoint (12.5/25), which under-scored realistic longevity cases —
+    // e.g. a 72-year-old expecting to live to 90 earned only 12.5/25 despite
+    // being a textbook high-longevity profile. Shifting both anchors down by 5
+    // years puts age 90 at 18.75/25 (well above midpoint) while keeping the
+    // formula linear and preserving behaviour at the tails: anything ≤ 75 = 0,
+    // anything ≥ 95 = 25. Reviewed Aug 2026.
+    const longevityScore = Math.min(25, Math.max(0, ((expectedAge - 75) / 20) * 25));
 
     // Component 2: Income Gap (0-25)
     // gap is reused throughout the cap chain below

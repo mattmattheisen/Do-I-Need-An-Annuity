@@ -390,7 +390,15 @@ export default function AnnuityTool() {
       y += 12;
 
       doc.text(`Longevity: ${Math.round(results.longevityScore)}/25`, leftMargin, y);
-      y += 6;
+      y += 5;
+      doc.setFont('helvetica', 'italic');
+      const longevityNote = doc.splitTextToSize(
+        `Your expected age of ${formData.expectedAge} is the number you told us, not a projection from a mortality table. We ask because a longer expected lifespan generally makes guaranteed income more valuable, since it has more years to pay out.`,
+        170
+      );
+      doc.text(longevityNote, leftMargin, y);
+      doc.setFont('helvetica', 'normal');
+      y += longevityNote.length * 5 + 3;
       doc.text(
         `Income Gap: ${Math.round(results.incomeGapScore)}/25 (${(results.gapPct * 100).toFixed(0)}% gap)`,
         leftMargin,
@@ -595,7 +603,7 @@ export default function AnnuityTool() {
 
               <div>
                 <Label htmlFor="expectedAge" className="text-base font-medium">
-                  Age you expect to live to
+                  What age do you expect to live to?
                 </Label>
                 <Input
                   id="expectedAge"
@@ -608,8 +616,8 @@ export default function AnnuityTool() {
                   data-testid="input-expected-age"
                 />
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Most people underestimate this. The average 65-year-old lives to about 85; half
-                  live longer.
+                  This is your own estimate, not a calculation. Think about your health, your family
+                  history, and how long your parents or grandparents lived.
                 </p>
                 {errors.expectedAge && (
                   <p className="mt-1 text-sm text-destructive">{errors.expectedAge}</p>
@@ -911,13 +919,7 @@ export default function AnnuityTool() {
                     subtitle: 'How long the money has to last',
                     description: 'The longer your retirement, the more valuable a check that never stops. A shorter horizon favors keeping money flexible and invested.',
                     score: Math.round(results.longevityScore),
-                    detail: (() => {
-                      const h = Number(formData.expectedAge) - Number(formData.currentAge);
-                      const a = Number(formData.expectedAge);
-                      if (h >= 35) return `Planning to age ${a} means this money may need to last ${h} more years. That's a long time for savings to hold up on their own.`;
-                      if (h >= 25) return `Planning to age ${a} gives you a ${h}-year horizon. Long enough that outliving your savings is a real risk worth addressing.`;
-                      return `Planning to age ${a} gives you a ${h}-year horizon. Shorter horizons favor keeping money flexible rather than locking it up.`;
-                    })(),
+                    detail: `Your expected age of ${Number(formData.expectedAge)} is the number you told us, not a projection from a mortality table. We ask because a longer expected lifespan generally makes guaranteed income more valuable, since it has more years to pay out.`,
                   },
                   {
                     name: 'Income Gap',
@@ -1107,9 +1109,9 @@ export default function AnnuityTool() {
                     data-testid="limitation-life-expectancy"
                   >
                     <span style={{ fontWeight: 700 }}>Life expectancy.</span>{' '}
-                    The score uses your stated life expectancy, not an actuarial projection.
-                    Underestimating longevity makes annuitization look less attractive than it is;
-                    overestimating does the reverse.
+                    The longevity score uses the age you entered, not a projection from a mortality
+                    table. If you underestimate how long you'll live, the score will understate the
+                    value of guaranteed income — and vice versa.
                   </div>
 
                   <div

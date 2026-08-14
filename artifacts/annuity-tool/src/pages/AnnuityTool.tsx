@@ -204,6 +204,14 @@ export default function AnnuityTool() {
     const payoutRate = getPayoutRate(currentAge);
 
     // Component 3: Flexibility Need (0-25)
+    // The 10-point deductions for heirsImportant and healthcareConcern are
+    // equal-weighted by design. Reviewed Aug 2026: healthcare liquidity could
+    // arguably be weighted heavier as a harder constraint than heirs preference,
+    // but heirs vs. healthcare priority varies enough by client that equal
+    // weighting was kept rather than assuming one universally outweighs the
+    // other. No floor is enforced; both flags together yield a minimum of 5/25,
+    // which was tested (see Archetype 3 test case) and found to move the score
+    // a full band without being cosmetic.
     let flexibilityNeed = 25;
     if (heirsImportant) flexibilityNeed -= 10;
     if (healthcareConcern) flexibilityNeed -= 10;

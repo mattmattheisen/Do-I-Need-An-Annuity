@@ -1111,7 +1111,7 @@ export default function AnnuityTool() {
                     <span style={{ fontWeight: 700 }}>Life expectancy.</span>{' '}
                     The longevity score uses the age you entered, not a projection from a mortality
                     table. If you underestimate how long you'll live, the score will understate the
-                    value of guaranteed income — and vice versa.
+                    value of guaranteed income; if you overestimate, it will overstate it.
                   </div>
 
                   <div

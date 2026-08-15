@@ -177,7 +177,22 @@ export default function AnnuityTool() {
     return '#475569';                 // band 1 — darker slate, clearly no
   };
 
-  const downloadPDF = () => {
+  const downloadPDF = async () => {
+      // Load logo as data URL
+      let logoDataUrl: string | null = null;
+      try {
+        const resp = await fetch('/gambit-logo.png');
+        const blob = await resp.blob();
+        logoDataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      } catch {
+        // Non-fatal — fall back to text if image fails to load
+      }
+
       const doc = new jsPDF();
 
       const results = calculateResults();
@@ -191,11 +206,18 @@ export default function AnnuityTool() {
       const leftMargin = 20;
       const rightMargin = 190;
 
-      // Header
+      // Header — logo right-aligned, date left-aligned
+      const logoW = 52;
+      const logoH = 13; // ~4:1 aspect ratio
+      if (logoDataUrl) {
+        doc.addImage(logoDataUrl, 'PNG', rightMargin - logoW, y - 10, logoW, logoH);
+      } else {
+        doc.setFontSize(10);
+        doc.text('Gambit Capital Management, LLC', rightMargin, y, { align: 'right' });
+      }
       doc.setFontSize(10);
       doc.text(today, leftMargin, y);
-      doc.text('Gambit Capital Management, LLC', rightMargin, y, { align: 'right' });
-      y += 10;
+      y += 8;
       doc.line(leftMargin, y, rightMargin, y);
       y += 15;
 

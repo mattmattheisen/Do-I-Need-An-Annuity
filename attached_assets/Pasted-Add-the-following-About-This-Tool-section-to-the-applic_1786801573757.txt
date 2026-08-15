@@ -1,0 +1,25 @@
+Add the following "About This Tool" section to the application.
+
+Place it on the introductory page below the existing introductory content and before the user begins the assessment. It should be visually secondary to the "Start Assessment" button and should match the application's existing typography, spacing, colors, and design system.
+
+Do not change the scoring methodology, calculations, questions, navigation, or any other application functionality. Do not rewrite or shorten the copy below. Do not add em dashes.
+
+ABOUT THIS TOOL
+
+This tool is designed for educational and discussion purposes only. Its purpose is to help you explore whether transferring a portion of your retirement-income risk to an insurance company may deserve further consideration.
+
+The analysis considers several factors that can be relevant to retirement-income planning, including your existing sources of guaranteed income, retirement spending needs, expected longevity, need for access to your savings, and comfort with market fluctuations.
+
+This tool does not evaluate or recommend any specific annuity, insurance company, investment, or insurance contract. The results should not be interpreted as a recommendation to purchase or sell an annuity or any other financial product.
+
+The results are based solely on the information you enter and on simplified assumptions used by the tool. Your complete financial circumstances, including taxes, inflation, healthcare and long-term care needs, Social Security claiming decisions, legacy objectives, spouse or survivor needs, other assets and income sources, insurer financial strength, and specific contract provisions, may materially affect whether an annuity is appropriate for you.
+
+Any dollar amount shown by the tool represents an amount that may warrant further evaluation, not a recommendation to invest that amount in an annuity.
+
+Before making a financial or insurance decision, consider reviewing your individual circumstances with a qualified financial professional.
+
+YOUR PRIVACY
+
+Information entered into this tool is processed on your device and is not intended to be saved or transmitted to Gambit Capital Management. Close the page and your entries are gone.
+
+After making the change, report exactly which file was modified and do not make any unrelated changes.

@@ -587,6 +587,58 @@ export default function AnnuityTool() {
             <p className="mt-6 text-xs text-muted-foreground">
               Everything you enter stays on your device. Nothing is sent anywhere.
             </p>
+
+            {/* About This Tool */}
+            <div className="mt-12 max-w-xl border-t border-border pt-8 text-left">
+              <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                About This Tool
+              </h3>
+              <div className="mt-3 space-y-3 text-sm leading-relaxed text-muted-foreground">
+                <p>
+                  This tool is designed for educational and discussion purposes only. Its purpose is
+                  to help you explore whether transferring a portion of your retirement-income risk
+                  to an insurance company may deserve further consideration.
+                </p>
+                <p>
+                  The analysis considers several factors that can be relevant to
+                  retirement-income planning, including your existing sources of guaranteed income,
+                  retirement spending needs, expected longevity, need for access to your savings,
+                  and comfort with market fluctuations.
+                </p>
+                <p>
+                  This tool does not evaluate or recommend any specific annuity, insurance company,
+                  investment, or insurance contract. The results should not be interpreted as a
+                  recommendation to purchase or sell an annuity or any other financial product.
+                </p>
+                <p>
+                  The results are based solely on the information you enter and on simplified
+                  assumptions used by the tool. Your complete financial circumstances, including
+                  taxes, inflation, healthcare and long-term care needs, Social Security claiming
+                  decisions, legacy objectives, spouse or survivor needs, other assets and income
+                  sources, insurer financial strength, and specific contract provisions, may
+                  materially affect whether an annuity is appropriate for you.
+                </p>
+                <p>
+                  Any dollar amount shown by the tool represents an amount that may warrant further
+                  evaluation, not a recommendation to invest that amount in an annuity.
+                </p>
+                <p>
+                  Before making a financial or insurance decision, consider reviewing your
+                  individual circumstances with a qualified financial professional.
+                </p>
+              </div>
+
+              <h3 className="mt-6 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                Your Privacy
+              </h3>
+              <div className="mt-3 space-y-3 text-sm leading-relaxed text-muted-foreground">
+                <p>
+                  Information entered into this tool is processed on your device and is not
+                  intended to be saved or transmitted to Gambit Capital Management. Close the page
+                  and your entries are gone.
+                </p>
+              </div>
+            </div>
           </div>
         )}
 

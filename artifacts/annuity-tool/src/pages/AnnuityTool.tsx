@@ -638,6 +638,32 @@ export default function AnnuityTool() {
                   className="mt-2"
                   data-testid="input-expected-age"
                 />
+                {(() => {
+                  const age = Number(formData.expectedAge);
+                  if (!formData.expectedAge || isNaN(age) || age <= 0) return null;
+                  const score = Math.min(25, Math.max(0, ((age - 75) / 20) * 25));
+                  const rounded = Math.round(score);
+                  // Pick a label that explains what the score means
+                  const label =
+                    rounded >= 20
+                      ? 'High longevity weight — longer timeline makes guaranteed income more valuable'
+                      : rounded >= 13
+                      ? 'Moderate longevity weight'
+                      : rounded >= 6
+                      ? 'Lower longevity weight — shorter timeline reduces annuity advantage'
+                      : 'Minimal longevity weight';
+                  return (
+                    <div
+                      className="mt-2 flex items-center gap-2"
+                      data-testid="longevity-score-indicator"
+                    >
+                      <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold text-muted-foreground tabular-nums">
+                        Longevity: {rounded}&thinsp;/&thinsp;25
+                      </span>
+                      <span className="text-xs text-muted-foreground">{label}</span>
+                    </div>
+                  );
+                })()}
                 <p className="mt-2 text-sm text-muted-foreground">
                   This is your own estimate, not a calculation. Think about your health, your family
                   history, and how long your parents or grandparents lived.

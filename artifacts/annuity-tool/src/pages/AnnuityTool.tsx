@@ -430,12 +430,6 @@ export default function AnnuityTool() {
       );
       y += 4;
       doc.text('This report was generated on your own device.', leftMargin, y);
-      y += 10;
-      doc.text(
-        'Advisor: ________________________________    Contact: ________________________________',
-        leftMargin,
-        y
-      );
 
       doc.save('annuity-assessment.pdf');
   };

@@ -169,6 +169,114 @@ export default function AnnuityTool() {
     });
   };
 
+  /**
+   * Generates a 2–3 sentence plain-language narrative explaining what drove the
+   * suitability score. References actual sub-scores so the reader can connect
+   * numbers to language.
+   */
+  const generateScoreNarrative = (r: NonNullable<ReturnType<typeof calculateResults>>): string => {
+    const components = [
+      { label: 'Longevity',      score: Math.round(r.longevityScore) },
+      { label: 'Income Gap',     score: Math.round(r.incomeGapScore) },
+      { label: 'Flexibility',    score: Math.round(r.flexibilityNeed) },
+      { label: 'Behavioral Fit', score: Math.round(r.behavioralFitScore) },
+    ];
+
+    // Sort descending so we can identify the biggest contributors and biggest drags
+    const sorted = [...components].sort((a, b) => b.score - a.score);
+
+    // Strong drivers: any component ≥ 17 (68%+ of its 25-point max)
+    const strongDrivers = sorted.filter(c => c.score >= 17);
+    // Moderate contributors: 12–16
+    const moderateDrivers = sorted.filter(c => c.score >= 12 && c.score < 17);
+    // Significant pullbacks: ≤ 9 (36% or less of max)
+    const significantPullbacks = sorted.filter(c => c.score <= 9);
+    // Mild pullbacks: 10–12
+    const mildPullbacks = sorted.filter(c => c.score >= 10 && c.score <= 12);
+
+    const fmt = (c: { label: string; score: number }) => `${c.label} (${c.score}/25)`;
+    const joinTwo = (arr: { label: string; score: number }[]) =>
+      arr.length === 1 ? fmt(arr[0]) : `${fmt(arr[0])} and ${fmt(arr[1])}`;
+
+    const sentences: string[] = [];
+
+    // ── Sentence 1: what's pushing the score up ──────────────────────────────
+    if (strongDrivers.length >= 2) {
+      sentences.push(
+        `Your score is driven primarily by ${joinTwo(strongDrivers.slice(0, 2))}.`
+      );
+    } else if (strongDrivers.length === 1 && moderateDrivers.length >= 1) {
+      sentences.push(
+        `Your score is led by ${fmt(strongDrivers[0])}, with a meaningful contribution from ${fmt(moderateDrivers[0])}.`
+      );
+    } else if (strongDrivers.length === 1) {
+      sentences.push(
+        `Your score is driven primarily by ${fmt(strongDrivers[0])}.`
+      );
+    } else if (moderateDrivers.length >= 2) {
+      sentences.push(
+        `No single factor stands out strongly; the score reflects moderate contributions from ${joinTwo(moderateDrivers.slice(0, 2))}.`
+      );
+    } else if (moderateDrivers.length === 1) {
+      sentences.push(
+        `The score is modest overall, with ${fmt(moderateDrivers[0])} as the main positive factor.`
+      );
+    } else {
+      sentences.push(
+        `All four factors score in the lower range, and no single dimension makes a strong case for guaranteed income in this profile.`
+      );
+    }
+
+    // ── Sentence 2: what's pulling the score down ─────────────────────────────
+    // Only mention pullbacks that are different from what was already called out
+    const alreadyMentioned = new Set([
+      ...(strongDrivers.length >= 2 ? strongDrivers.slice(0, 2) : strongDrivers),
+      ...(strongDrivers.length === 1 ? moderateDrivers.slice(0, 1) : []),
+      ...(strongDrivers.length === 0 ? moderateDrivers.slice(0, 2) : []),
+    ].map(c => c.label));
+
+    const notablePullbacks = significantPullbacks.filter(c => !alreadyMentioned.has(c.label));
+    const mildNotable = mildPullbacks.filter(c => !alreadyMentioned.has(c.label));
+
+    if (notablePullbacks.length >= 2) {
+      sentences.push(
+        `${joinTwo(notablePullbacks.slice(0, 2))} pulled the score back most significantly.`
+      );
+    } else if (notablePullbacks.length === 1) {
+      sentences.push(
+        `${fmt(notablePullbacks[0])} pulled the score back.`
+      );
+    } else if (mildNotable.length >= 1 && sentences[0].includes('driven primarily')) {
+      // Only mention mild pullbacks when there's a clear positive story to contrast with
+      const names = mildNotable.slice(0, 2).map(fmt).join(' and ');
+      sentences.push(
+        `${mildNotable.length === 1 ? 'A moderate offset comes from' : 'Moderate offsets come from'} ${names}.`
+      );
+    }
+
+    // ── Sentence 3: brief plain-language summary ──────────────────────────────
+    const score = r.suitabilityScore;
+    if (score > 75) {
+      sentences.push(
+        `Taken together, the profile builds a strong case for guaranteed lifetime income.`
+      );
+    } else if (score > 50) {
+      sentences.push(
+        `Taken together, the profile suggests guaranteed income is worth exploring for part of your assets.`
+      );
+    } else if (score > 25) {
+      sentences.push(
+        `Taken together, the limiting factors leave the case for an annuity less clear-cut.`
+      );
+    } else {
+      sentences.push(
+        `Taken together, the limiting factors outweigh the case for guaranteed income in this profile.`
+      );
+    }
+
+    return sentences.join(' ');
+  };
+
   const getSuitabilityBand = (score: number): string => {
     if (score <= 25) return 'Your circumstances suggest that transferring retirement-income risk to an insurance company is unlikely to address the primary gaps in your plan.';
     if (score <= 50) return 'Your circumstances suggest that guaranteed lifetime income may warrant limited consideration for a portion of your assets.';
@@ -312,7 +420,12 @@ export default function AnnuityTool() {
       doc.text(getSuitabilityBand(results.suitabilityScore), leftMargin, y, {
         maxWidth: 170,
       });
-      y += 12;
+      y += 10;
+      doc.setFont('helvetica', 'italic');
+      const narrativeLines = doc.splitTextToSize(generateScoreNarrative(results), 170);
+      doc.text(narrativeLines, leftMargin, y);
+      doc.setFont('helvetica', 'normal');
+      y += narrativeLines.length * 5 + 6;
 
       doc.text(`Longevity: ${Math.round(results.longevityScore)}/25`, leftMargin, y);
       y += 5;
@@ -1040,6 +1153,12 @@ export default function AnnuityTool() {
               <div className="text-lg font-medium text-muted-foreground">Guaranteed Income Assessment</div>
               <p className="mx-auto mt-4 max-w-2xl text-base text-foreground" data-testid="text-suitability-band">
                 {getSuitabilityBand(results.suitabilityScore)}
+              </p>
+              <p
+                className="mx-auto mt-4 max-w-2xl rounded-lg border border-border bg-muted/40 px-5 py-4 text-left text-sm leading-relaxed text-foreground"
+                data-testid="text-score-narrative"
+              >
+                {generateScoreNarrative(results)}
               </p>
               <button
                 type="button"

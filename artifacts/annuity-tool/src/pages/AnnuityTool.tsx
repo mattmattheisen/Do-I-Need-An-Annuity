@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
+import { calculateResults as computeResults } from '@/lib/scoring';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -143,150 +144,23 @@ export default function AnnuityTool() {
   };
 
   const calculateResults = () => {
-    // Fallback to 0 for any field that somehow arrives as NaN (e.g. empty string
-    // after a rapid Back → forward navigation before validation fires)
-    const currentAge   = Number(formData.currentAge)    || 0;
-    const expectedAge  = Number(formData.expectedAge)   || 0;
-    // Guaranteed income for the annuity gap = SS + pension + other guaranteed.
-    // Employment / self-employment income is collected for context only.
-    const totalGuaranteedIncome =
-      (Number(formData.socialSecurityAnnual)   || 0) +
-      (Number(formData.pensionAnnual)          || 0) +
-      (Number(formData.otherGuaranteedIncome)  || 0);
-    const investableAssets = Number(formData.investableAssets) || 0;
-    const spendingGoal = Number(formData.spendingGoal)  || 0;
-    const sliderValue = formData.marketComfort;
-    const heirsImportant = formData.heirsImportant;
-    const healthcareConcern = formData.healthcareConcern;
-
-    // Component 1: Longevity (0-25)
-    // Anchors: zero at age 75, maximum at age 95 (capped).
-    // Previous anchors (zero at 80, max at 100) placed age 90 at the exact
-    // midpoint (12.5/25), which under-scored realistic longevity cases —
-    // e.g. a 72-year-old expecting to live to 90 earned only 12.5/25 despite
-    // being a textbook high-longevity profile. Shifting both anchors down by 5
-    // years puts age 90 at 18.75/25 (well above midpoint) while keeping the
-    // formula linear and preserving behaviour at the tails: anything ≤ 75 = 0,
-    // anything ≥ 95 = 25. Reviewed Aug 2026.
-    const longevityScore = Math.min(25, Math.max(0, ((expectedAge - 75) / 20) * 25));
-
-    // Component 2: Income Gap (0-25)
-    // gap is reused throughout the cap chain below
-    const gap = Math.max(0, spendingGoal - totalGuaranteedIncome);
-    const gapPct = spendingGoal > 0 ? gap / spendingGoal : 0;
-    const incomeGapScore = Math.min(25, Math.max(0, (gapPct / 0.6) * 25));
-
-    // Component 4: Behavioral Fit (0-25)
-    const behavioralFitScore = (4 - sliderValue) * (25 / 4);
-
-    // Payout rate — moved above the concentration check so the check can use it
-    // as part of an exogenous (score-independent) test.
-    // NOTE: getPayoutRate returns a full-precision interpolated value (e.g. 0.0676
-    // for age 67). The UI displays it rounded to one decimal (6.8%) for readability,
-    // but all income calculations use the unrounded value.
-    const getPayoutRate = (age: number): number => {
-      // Updated breakpoints reflecting current SPIA market rates.
-      // Internal math uses full-precision interpolated values; display rounds
-      // to one decimal.
-      const breakpoints: [number, number][] = [
-        [50, 0.045],
-        [55, 0.062],
-        [60, 0.070],
-        [65, 0.077],
-        [70, 0.092],
-        [75, 0.110],
-        [80, 0.135],
-        [85, 0.175],
-      ];
-      if (age <= 50) return 0.045;
-      if (age >= 85) return 0.175;
-      for (let i = 0; i < breakpoints.length - 1; i++) {
-        const [a1, r1] = breakpoints[i];
-        const [a2, r2] = breakpoints[i + 1];
-        if (age >= a1 && age <= a2) {
-          return r1 + ((age - a1) / (a2 - a1)) * (r2 - r1);
-        }
-      }
-      return 0.064;
-    };
-    const payoutRate = getPayoutRate(currentAge);
-
-    // Component 3: Flexibility Need (0-25)
-    // The 10-point deductions for heirsImportant and healthcareConcern are
-    // equal-weighted by design. Reviewed Aug 2026: healthcare liquidity could
-    // arguably be weighted heavier as a harder constraint than heirs preference,
-    // but heirs vs. healthcare priority varies enough by client that equal
-    // weighting was kept rather than assuming one universally outweighs the
-    // other. No floor is enforced; both flags together yield a minimum of 5/25,
-    // which was tested (see Archetype 3 test case) and found to move the score
-    // a full band without being cosmetic.
-    let flexibilityNeed = 25;
-    if (heirsImportant) flexibilityNeed -= 10;
-    if (healthcareConcern) flexibilityNeed -= 10;
-
-    // Concentration was previously applied as a –5 to flexibility, first as a
-    // circular score-derived check, then as an exogenous gap/payoutRate check.
-    // Both approaches penalised the majority of clients with any meaningful gap
-    // (20-profile sample: 55% at 35% threshold, 40% at 60%), making the
-    // component nearly constant rather than discriminating. Concentration is
-    // already addressed at the recommendation layer (50% cap) and in the
-    // consideration block below — penalising it a third time inside the score
-    // was redundant. Flexibility now reflects only illiquidity preference
-    // (heirs and healthcare) as originally intended.
-
-    // Suitability score — computed once, clamped to [0, 100]
-    const clampScore = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
-    const suitabilityScore = clampScore(
-      longevityScore + incomeGapScore + flexibilityNeed + behavioralFitScore
-    );
-    const allocPct = (suitabilityScore / 100) * 0.5;
-
-    const rawDollarAmount = allocPct * investableAssets;
-    const rawAnnuityIncome = rawDollarAmount * payoutRate;
-
-    // Cap so annuity income doesn't exceed the income gap.
-    // If guaranteed income already covers spending entirely (gap = 0),
-    // there is nothing for an annuity to fill — recommend $0.
-    let finalDollarAmount = rawDollarAmount;
-    if (gap === 0) {
-      finalDollarAmount = 0;
-    } else if (rawAnnuityIncome > gap) {
-      finalDollarAmount = gap / payoutRate;
-    }
-
-    // Minimum contract floor — most carriers will not write a contract below
-    // ~$25,000. If the computed amount falls below this, flag it and zero the
-    // recommendation so the UI can explain rather than name a meaningless figure.
-    const MIN_ANNUITY_PURCHASE = 25000;
-    const gapTooSmallForContract =
-      finalDollarAmount > 0 && finalDollarAmount < MIN_ANNUITY_PURCHASE;
-    if (gapTooSmallForContract) {
-      finalDollarAmount = 0;
-    }
-
-    const finalAllocPct = investableAssets > 0 ? finalDollarAmount / investableAssets : 0;
-    const estimatedAnnualIncome = finalDollarAmount * payoutRate;
-
-    // 50% ceiling
-    const ceilingDollarAmount = investableAssets * 0.5;
-
-    return {
-      suitabilityScore,
-      longevityScore,
-      incomeGapScore,
-      flexibilityNeed,
-      behavioralFitScore,
-      gapTooSmallForContract,
-      recommendedAmount: finalDollarAmount,
-      recommendedPct: finalAllocPct,
-      estimatedIncome: estimatedAnnualIncome,
-      payoutRate,
-      ceilingAmount: ceilingDollarAmount,
-      gap,
-      gapPct,
-      totalGuaranteedIncome,
-      remainingAssets: investableAssets - finalDollarAmount,
-    };
+    // Delegate to the pure scoring module (src/lib/scoring.ts).
+    // Fallback to 0 for any field that somehow arrives as NaN (e.g. empty
+    // string after a rapid Back → forward navigation before validation fires).
+    return computeResults({
+      currentAge:             Number(formData.currentAge)            || 0,
+      expectedAge:            Number(formData.expectedAge)           || 0,
+      // Guaranteed income for the annuity gap = SS + pension + other guaranteed.
+      // Employment / self-employment income is collected for context only.
+      socialSecurityAnnual:   Number(formData.socialSecurityAnnual)  || 0,
+      pensionAnnual:          Number(formData.pensionAnnual)         || 0,
+      otherGuaranteedIncome:  Number(formData.otherGuaranteedIncome) || 0,
+      investableAssets:       Number(formData.investableAssets)      || 0,
+      spendingGoal:           Number(formData.spendingGoal)          || 0,
+      marketComfort:          formData.marketComfort,
+      heirsImportant:         formData.heirsImportant,
+      healthcareConcern:      formData.healthcareConcern,
+    });
   };
 
   const getSuitabilityBand = (score: number): string => {

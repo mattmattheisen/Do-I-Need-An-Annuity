@@ -4,7 +4,52 @@
  * Extracted from AnnuityTool.tsx so that the calculation logic can be unit-tested
  * independently of the React component. The component calls calculateResults() by
  * passing its formData; this module owns all formula constants and rules.
+ *
+ * Individual component helpers are exported so the UI can display live sub-scores
+ * that always match the engine — use these in AnnuityTool.tsx instead of
+ * duplicating the formulas inline.
  */
+
+// ---------------------------------------------------------------------------
+// Individual component-score helpers (raw, unrounded — caller rounds for display)
+// ---------------------------------------------------------------------------
+
+/** Longevity component (0–25). Anchored at zero at age 75, maximum at age 95. */
+export function computeLongevityScore(expectedAge: number): number {
+  return Math.min(25, Math.max(0, ((expectedAge - 75) / 20) * 25));
+}
+
+/**
+ * Income Gap component (0–25).
+ * Returns the raw fractional score — pass spendingGoal=0 to get 0.
+ */
+export function computeIncomeGapScore(
+  spendingGoal: number,
+  totalGuaranteedIncome: number
+): number {
+  const gap = Math.max(0, spendingGoal - totalGuaranteedIncome);
+  const gapPct = spendingGoal > 0 ? gap / spendingGoal : 0;
+  return Math.min(25, Math.max(0, (gapPct / 0.6) * 25));
+}
+
+/** Flexibility Need component (0–25). Each flag deducts 10 points. */
+export function computeFlexibilityScore(
+  heirsImportant: boolean,
+  healthcareConcern: boolean
+): number {
+  let score = 25;
+  if (heirsImportant)    score -= 10;
+  if (healthcareConcern) score -= 10;
+  return score;
+}
+
+/**
+ * Behavioral Fit component (0–25).
+ * Lower market comfort (more risk-averse) → higher score.
+ */
+export function computeBehavioralFitScore(marketComfort: number): number {
+  return (4 - marketComfort) * (25 / 4);
+}
 
 export interface ScoringInput {
   /** Client's current age */
@@ -109,23 +154,21 @@ export function calculateResults(input: ScoringInput): ScoringResult {
   // Component 1: Longevity (0–25)
   // Anchors: zero at age 75, maximum at age 95.
   // Reviewed Aug 2026 — see AnnuityTool.tsx for anchor-shift rationale.
-  const longevityScore = Math.min(25, Math.max(0, ((expectedAge - 75) / 20) * 25));
+  const longevityScore = computeLongevityScore(expectedAge);
 
   // Component 2: Income Gap (0–25)
   const gap = Math.max(0, spendingGoal - totalGuaranteedIncome);
   const gapPct = spendingGoal > 0 ? gap / spendingGoal : 0;
-  const incomeGapScore = Math.min(25, Math.max(0, (gapPct / 0.6) * 25));
+  const incomeGapScore = computeIncomeGapScore(spendingGoal, totalGuaranteedIncome);
 
   // Component 3: Flexibility Need (0–25)
   // Equal 10-point deductions for heirs preference and healthcare concern.
   // Reviewed Aug 2026 — equal weighting kept intentionally (see AnnuityTool.tsx).
-  let flexibilityNeed = 25;
-  if (heirsImportant) flexibilityNeed -= 10;
-  if (healthcareConcern) flexibilityNeed -= 10;
+  const flexibilityNeed = computeFlexibilityScore(heirsImportant, healthcareConcern);
 
   // Component 4: Behavioral Fit (0–25)
   // Lower slider value (more risk-averse) → higher score.
-  const behavioralFitScore = (4 - marketComfort) * (25 / 4);
+  const behavioralFitScore = computeBehavioralFitScore(marketComfort);
 
   // Total suitability score, clamped to [0, 100]
   const clampScore = (n: number) => Math.max(0, Math.min(100, Math.round(n)));

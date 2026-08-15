@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
-import { calculateResults as computeResults } from '@/lib/scoring';
+import {
+  calculateResults as computeResults,
+  computeLongevityScore,
+  computeIncomeGapScore,
+  computeFlexibilityScore,
+  computeBehavioralFitScore,
+} from '@/lib/scoring';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -583,7 +589,7 @@ export default function AnnuityTool() {
                 {(() => {
                   const age = Number(formData.expectedAge);
                   if (!formData.expectedAge || isNaN(age) || age <= 0) return null;
-                  const score = Math.min(25, Math.max(0, ((age - 75) / 20) * 25));
+                  const score = computeLongevityScore(age);
                   const rounded = Math.round(score);
                   // Pick a label that explains what the score means
                   const label =
@@ -750,8 +756,60 @@ export default function AnnuityTool() {
                     data-testid="switch-healthcare-concern"
                   />
                 </div>
+
+                {/* Flexibility Need live indicator */}
+                {(() => {
+                  const flex = computeFlexibilityScore(formData.heirsImportant, formData.healthcareConcern);
+                  const label =
+                    flex >= 25 ? 'Annuity lock-up is less of a concern'
+                    : flex >= 15 ? 'Moderate flexibility consideration'
+                    : flex >= 10 ? 'Flexibility matters — one key constraint noted'
+                    : 'Flexibility is a priority — heirs and healthcare both noted';
+                  return (
+                    <div className="flex items-center gap-2 pt-1" data-testid="flexibility-score-indicator">
+                      <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold text-muted-foreground tabular-nums">
+                        Flexibility:&thinsp;{flex}&thinsp;/&thinsp;25
+                      </span>
+                      <span className="text-xs text-muted-foreground">{label}</span>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
+
+            {/* Step 1 running sub-score total (2 of 4 components on this step) */}
+            {(() => {
+              const age = Number(formData.expectedAge);
+              if (!formData.expectedAge || isNaN(age) || age <= 0) return null;
+
+              // Use raw (fractional) values and round the sum once — same rule as the engine.
+              const rawLongevity  = computeLongevityScore(age);
+              const rawFlex       = computeFlexibilityScore(formData.heirsImportant, formData.healthcareConcern);
+              const known         = Math.round(rawLongevity + rawFlex);
+              const max           = 50; // only 2 of 4 components visible on this step
+
+              return (
+                <div className="rounded-md border border-border bg-muted/40 px-4 py-3" data-testid="step1-running-total">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-xs font-medium text-muted-foreground">Score so far (2 of 4 components)</span>
+                    <span className="text-xs font-semibold text-foreground tabular-nums">
+                      {known}+&thinsp;/&thinsp;100
+                    </span>
+                  </div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-border">
+                    <div
+                      className="h-full rounded-full bg-primary/60 transition-all duration-300"
+                      style={{ width: `${known}%` }}
+                    />
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                    <span>Longevity&thinsp;{Math.round(rawLongevity)}/25</span>
+                    <span>Flexibility&thinsp;{rawFlex}/25</span>
+                    <span className="opacity-50">Income Gap &amp; Behavioral — step 2</span>
+                  </div>
+                </div>
+              );
+            })()}
 
             <div className="flex justify-end pt-4">
               <Button
@@ -821,6 +879,30 @@ export default function AnnuityTool() {
                 {errors.spendingGoal && (
                   <p className="mt-1 text-sm text-destructive">{errors.spendingGoal}</p>
                 )}
+
+                {/* Income Gap live indicator — placed here because it requires the spending goal */}
+                {(() => {
+                  const spending = Number(formData.spendingGoal) || 0;
+                  if (spending <= 0) return null;
+                  const ss    = Number(formData.socialSecurityAnnual)  || 0;
+                  const pen   = Number(formData.pensionAnnual)         || 0;
+                  const other = Number(formData.otherGuaranteedIncome) || 0;
+                  const score   = computeIncomeGapScore(spending, ss + pen + other);
+                  const rounded = Math.round(score);
+                  const label   =
+                    rounded >= 20 ? 'Large gap — strong case for guaranteed income'
+                    : rounded >= 13 ? 'Moderate gap'
+                    : rounded >= 6  ? 'Small gap — existing income covers most spending'
+                    : 'No meaningful gap — guaranteed income meets your spending goal';
+                  return (
+                    <div className="mt-2 flex items-center gap-2" data-testid="income-gap-score-indicator">
+                      <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold text-muted-foreground tabular-nums">
+                        Income Gap:&thinsp;{rounded}&thinsp;/&thinsp;25
+                      </span>
+                      <span className="text-xs text-muted-foreground">{label}</span>
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className="pt-4">
@@ -848,8 +930,69 @@ export default function AnnuityTool() {
                     </label>
                   ))}
                 </RadioGroup>
+
+                {/* Behavioral Fit live indicator */}
+                {(() => {
+                  const score   = computeBehavioralFitScore(formData.marketComfort);
+                  const rounded = Math.round(score);
+                  const label   =
+                    rounded >= 20 ? 'Risk-averse — guaranteed income is a strong fit'
+                    : rounded >= 13 ? 'Moderate comfort with market risk'
+                    : rounded >= 6  ? 'Comfortable with volatility — annuity trade-off is real'
+                    : 'Very comfortable with risk — annuity lock-up may not appeal';
+                  return (
+                    <div className="mt-3 flex items-center gap-2" data-testid="behavioral-fit-score-indicator">
+                      <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold text-muted-foreground tabular-nums">
+                        Behavioral Fit:&thinsp;{rounded}&thinsp;/&thinsp;25
+                      </span>
+                      <span className="text-xs text-muted-foreground">{label}</span>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
+
+            {/* Step 2 running sub-score total (all 4 components) */}
+            {(() => {
+              const age = Number(formData.expectedAge);
+
+              // Use raw (fractional) component values and round the sum once —
+              // identical to calculateResults() so the preview matches the final score.
+              const rawLongevity  = (formData.expectedAge && !isNaN(age) && age > 0)
+                ? computeLongevityScore(age)
+                : 0;
+              const rawFlex       = computeFlexibilityScore(formData.heirsImportant, formData.healthcareConcern);
+              const ss       = Number(formData.socialSecurityAnnual)  || 0;
+              const pen      = Number(formData.pensionAnnual)         || 0;
+              const other    = Number(formData.otherGuaranteedIncome) || 0;
+              const spending = Number(formData.spendingGoal)          || 0;
+              const rawGap        = computeIncomeGapScore(spending, ss + pen + other);
+              const rawBehavioral = computeBehavioralFitScore(formData.marketComfort);
+
+              // Round the sum once — same as Math.round(sum) in the scoring engine.
+              const total = Math.min(100, Math.max(0, Math.round(rawLongevity + rawFlex + rawGap + rawBehavioral)));
+
+              return (
+                <div className="rounded-md border border-border bg-muted/40 px-4 py-3" data-testid="step2-running-total">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-xs font-medium text-muted-foreground">Running total (all 4 components)</span>
+                    <span className="text-xs font-semibold text-foreground tabular-nums">{total}&thinsp;/&thinsp;100</span>
+                  </div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-border">
+                    <div
+                      className="h-full rounded-full bg-primary/60 transition-all duration-300"
+                      style={{ width: `${total}%` }}
+                    />
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                    <span>Longevity&thinsp;{Math.round(rawLongevity)}/25</span>
+                    <span>Income Gap&thinsp;{Math.round(rawGap)}/25</span>
+                    <span>Flexibility&thinsp;{rawFlex}/25</span>
+                    <span>Behavioral&thinsp;{Math.round(rawBehavioral)}/25</span>
+                  </div>
+                </div>
+              );
+            })()}
 
             <div className="flex justify-end pt-4">
               <Button

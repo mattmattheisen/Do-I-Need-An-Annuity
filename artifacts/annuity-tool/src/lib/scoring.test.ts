@@ -12,7 +12,151 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { calculateResults, type ScoringInput } from './scoring';
+import {
+  calculateResults,
+  computeLongevityScore,
+  computeIncomeGapScore,
+  computeFlexibilityScore,
+  computeBehavioralFitScore,
+  type ScoringInput,
+} from './scoring';
+
+// ---------------------------------------------------------------------------
+// Component helper unit tests
+// These ensure the exported helpers always agree with calculateResults() so
+// that the live UI indicators can never drift from the final results page.
+// ---------------------------------------------------------------------------
+describe('computeLongevityScore', () => {
+  it('returns 0 at the lower anchor (age 75)', () => {
+    expect(computeLongevityScore(75)).toBe(0);
+  });
+
+  it('returns 25 at the upper anchor (age 95)', () => {
+    expect(computeLongevityScore(95)).toBe(25);
+  });
+
+  it('is clamped to 0 below age 75', () => {
+    expect(computeLongevityScore(60)).toBe(0);
+  });
+
+  it('is clamped to 25 above age 95', () => {
+    expect(computeLongevityScore(105)).toBe(25);
+  });
+
+  it('matches calculateResults for age 85', () => {
+    const result = calculateResults({
+      currentAge: 65, expectedAge: 85,
+      socialSecurityAnnual: 0, pensionAnnual: 0, otherGuaranteedIncome: 0,
+      investableAssets: 0, spendingGoal: 0,
+      marketComfort: 2, heirsImportant: false, healthcareConcern: false,
+    });
+    expect(computeLongevityScore(85)).toBeCloseTo(result.longevityScore, 10);
+  });
+});
+
+describe('computeIncomeGapScore', () => {
+  it('returns 0 when spending goal is 0', () => {
+    expect(computeIncomeGapScore(0, 0)).toBe(0);
+  });
+
+  it('returns 0 when guaranteed income fully covers spending', () => {
+    expect(computeIncomeGapScore(60_000, 70_000)).toBe(0);
+  });
+
+  it('is capped at 25 when gap exceeds 60% of spending', () => {
+    expect(computeIncomeGapScore(80_000, 12_000)).toBe(25);
+  });
+
+  it('matches calculateResults for a 50% gap', () => {
+    const result = calculateResults({
+      currentAge: 70, expectedAge: 85,
+      socialSecurityAnnual: 20_000, pensionAnnual: 0, otherGuaranteedIncome: 10_000,
+      investableAssets: 500_000, spendingGoal: 60_000,
+      marketComfort: 2, heirsImportant: true, healthcareConcern: true,
+    });
+    expect(computeIncomeGapScore(60_000, 30_000)).toBeCloseTo(result.incomeGapScore, 10);
+  });
+});
+
+describe('computeFlexibilityScore', () => {
+  it('returns 25 when neither flag is set', () => {
+    expect(computeFlexibilityScore(false, false)).toBe(25);
+  });
+
+  it('deducts 10 for heirs only', () => {
+    expect(computeFlexibilityScore(true, false)).toBe(15);
+  });
+
+  it('deducts 10 for healthcare only', () => {
+    expect(computeFlexibilityScore(false, true)).toBe(15);
+  });
+
+  it('returns 5 when both flags are set', () => {
+    expect(computeFlexibilityScore(true, true)).toBe(5);
+  });
+
+  it('matches calculateResults (both flags)', () => {
+    const result = calculateResults({
+      currentAge: 65, expectedAge: 85,
+      socialSecurityAnnual: 0, pensionAnnual: 0, otherGuaranteedIncome: 0,
+      investableAssets: 0, spendingGoal: 0,
+      marketComfort: 2, heirsImportant: true, healthcareConcern: true,
+    });
+    expect(computeFlexibilityScore(true, true)).toBe(result.flexibilityNeed);
+  });
+});
+
+describe('computeBehavioralFitScore', () => {
+  it('returns 25 for marketComfort = 0 (most risk-averse)', () => {
+    expect(computeBehavioralFitScore(0)).toBe(25);
+  });
+
+  it('returns 0 for marketComfort = 4 (most comfortable)', () => {
+    expect(computeBehavioralFitScore(4)).toBe(0);
+  });
+
+  it('returns 12.5 for marketComfort = 2 (neutral)', () => {
+    expect(computeBehavioralFitScore(2)).toBeCloseTo(12.5, 10);
+  });
+
+  it('matches calculateResults for marketComfort = 2', () => {
+    const result = calculateResults({
+      currentAge: 65, expectedAge: 85,
+      socialSecurityAnnual: 0, pensionAnnual: 0, otherGuaranteedIncome: 0,
+      investableAssets: 0, spendingGoal: 0,
+      marketComfort: 2, heirsImportant: false, healthcareConcern: false,
+    });
+    expect(computeBehavioralFitScore(2)).toBeCloseTo(result.behavioralFitScore, 10);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Rounding-consistency regression test
+// Reviewer identified that summing rounded components (52) disagrees with the
+// engine's sum-then-round approach (51) for the Archetype 3 inputs.
+// The live UI total must match the final score — this test locks that in.
+// ---------------------------------------------------------------------------
+describe('Live UI total must equal final score (rounding consistency)', () => {
+  it('Archetype 3 inputs: sum-raw-then-round (51) equals calculateResults', () => {
+    // Archetype 3: expectedAge 85, 50% gap, both flags, marketComfort 2
+    const rawLongevity  = computeLongevityScore(85);          // 12.5
+    const rawFlex       = computeFlexibilityScore(true, true); // 5
+    const rawGap        = computeIncomeGapScore(60_000, 30_000); // ~20.83
+    const rawBehavioral = computeBehavioralFitScore(2);        // 12.5
+
+    const liveTotal = Math.min(100, Math.max(0, Math.round(rawLongevity + rawFlex + rawGap + rawBehavioral)));
+
+    const finalResult = calculateResults({
+      currentAge: 70, expectedAge: 85,
+      socialSecurityAnnual: 20_000, pensionAnnual: 0, otherGuaranteedIncome: 10_000,
+      investableAssets: 500_000, spendingGoal: 60_000,
+      marketComfort: 2, heirsImportant: true, healthcareConcern: true,
+    });
+
+    expect(liveTotal).toBe(finalResult.suitabilityScore); // both should be 51
+  });
+});
+
 
 // ---------------------------------------------------------------------------
 // Archetype 1: Clear Yes

@@ -164,10 +164,10 @@ export default function AnnuityTool() {
   };
 
   const getSuitabilityBand = (score: number): string => {
-    if (score <= 25) return 'An annuity is unlikely to be the right tool for your situation.';
-    if (score <= 50) return 'An annuity may make sense for a small portion of your assets.';
-    if (score <= 75) return 'An annuity is worth serious consideration as part of your income plan.';
-    return 'An annuity aligns well with your priorities and goals.';
+    if (score <= 25) return 'Your circumstances suggest that transferring retirement-income risk to an insurance company is unlikely to address the primary gaps in your plan.';
+    if (score <= 50) return 'Your circumstances suggest that guaranteed lifetime income may warrant limited consideration for a portion of your assets.';
+    if (score <= 75) return 'Your circumstances suggest that guaranteed lifetime income may be worth exploring as part of your income plan.';
+    return 'Your circumstances suggest that guaranteed lifetime income may deserve further evaluation.';
   };
 
   const getScoreColor = (score: number): string => {
@@ -272,10 +272,10 @@ export default function AnnuityTool() {
       );
       y += 12;
 
-      // Suitability Assessment
+      // Guaranteed Income Assessment
       doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
-      doc.text('Suitability Assessment', leftMargin, y);
+      doc.text('Guaranteed Income Assessment', leftMargin, y);
       y += 8;
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
@@ -307,15 +307,15 @@ export default function AnnuityTool() {
       doc.text(`Behavioral Fit: ${Math.round(results.behavioralFitScore)}/25`, leftMargin, y);
       y += 12;
 
-      // Recommendation
+      // Amount for Further Evaluation
       doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
-      doc.text('Recommendation', leftMargin, y);
+      doc.text('Amount for Further Evaluation', leftMargin, y);
       y += 8;
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
       doc.text(
-        `Recommended amount: ${formatCurrency(results.recommendedAmount)}`,
+        `Amount to evaluate: ${formatCurrency(results.recommendedAmount)}`,
         leftMargin,
         y
       );
@@ -878,7 +878,7 @@ export default function AnnuityTool() {
                 </span>
                 <span className="text-3xl font-normal text-muted-foreground">/ 100</span>
               </div>
-              <div className="text-lg font-medium text-muted-foreground">Suitability Score</div>
+              <div className="text-lg font-medium text-muted-foreground">Guaranteed Income Assessment</div>
               <p className="mx-auto mt-4 max-w-2xl text-base text-foreground" data-testid="text-suitability-band">
                 {getSuitabilityBand(results.suitabilityScore)}
               </p>
@@ -964,12 +964,12 @@ export default function AnnuityTool() {
             {/* Recommendation */}
             <div>
               <h2 className="mb-4 text-xl font-semibold text-foreground">
-                Right-Sized Recommendation
+                Amount to Evaluate
               </h2>
               <div className="rounded-lg border-2 border-primary bg-accent/30 p-6">
                 <div className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-foreground">Recommended annuity amount:</span>
+                    <span className="text-foreground">Amount that may warrant further evaluation:</span>
                     <span className="font-semibold text-foreground" data-testid="text-recommended-amount">
                       {formatCurrency(results.recommendedAmount)}
                     </span>
